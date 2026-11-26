@@ -365,8 +365,10 @@ function renderCreate() {
       <p class="count" id="count"></p>
     </section>
 
-    <button id="generate" disabled>${bi("Create group and draw names", "그룹 만들고 추첨하기")}</button>
-    <div id="gen-msg"></div>
+    <div class="actions">
+      <button id="generate" disabled>${bi("Create group and draw names", "그룹 만들고 추첨하기")}</button>
+      <div id="gen-msg"></div>
+    </div>
 
     <button class="btn-ghost" id="back">${bi("← Back", "← 뒤로")}</button>`);
 
@@ -481,7 +483,7 @@ function renderHostView(code, group, { justCreated = false } = {}) {
       </ul>
     </section>
 
-    <div class="host-actions">
+    <div class="actions">
       <div class="btn-row">
         <button class="btn-secondary" id="play">${bi("Open as participant", "참여자로 열기")}</button>
         <button class="btn-secondary" id="reveal">${bi("Reveal all", "전체 공개")}</button>

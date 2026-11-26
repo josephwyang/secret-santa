@@ -542,8 +542,10 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
   animation: spin 0.7s linear infinite;
 }
 
-/* ---------- Host actions ---------- */
-.host-actions { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.1rem; }
+/* ---------- Button groups ---------- */
+/* Button groups above a "← Back"-style ghost link: 0.7rem between buttons, small gap before the link. */
+.actions { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.1rem; }
+.actions > div:empty { display: none; }
 .btn-row { display: flex; gap: 0.7rem; }
 .btn-row > button { flex: 1; min-width: 0; }
 .btn-danger {
