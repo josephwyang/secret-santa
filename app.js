@@ -838,7 +838,16 @@ function renderDashboard(code, group, session) {
   let timer = null;
   let saving = false;
   let again = false;
-  const status = (pair) => { if (statusEl) statusEl.innerHTML = pair ? bi(pair[0], pair[1]) : ""; };
+  // Status line: amber spinner + "Saving…" from the first keystroke, green "✓ Saved" once Firestore confirms.
+  function status(state) {
+    if (!statusEl) return;
+    statusEl.className = `save-status ${state || ""}`;
+    statusEl.innerHTML =
+      state === "saving" ? `<span class="mini-spinner" aria-hidden="true"></span>${bi("Saving…", "저장 중…")}`
+      : state === "saved" ? `<span aria-hidden="true">✓</span>${bi("Saved", "저장됨")}`
+      : state === "error" ? bi("Couldn't save. Will retry.", "저장하지 못했어요. 다시 시도할게요.")
+      : "";
+  }
 
   getDoc(memberRef(code, me))
     .then((snap) => {
@@ -851,24 +860,27 @@ function renderDashboard(code, group, session) {
   async function save() {
     clearTimeout(timer);
     const text = textarea.value.slice(0, MAX_WISHLIST);
-    if (text === saved) return;
     if (saving) { again = true; return; }
+    if (text === saved) {
+      if (statusEl && statusEl.classList.contains("saving")) status("saved"); // typed, then undid it
+      return;
+    }
     saving = true;
-    status(["Saving…", "저장 중…"]);
+    status("saving");
     try {
       const batch = writeBatch(db);
       batch.set(proofRef(code, me), { pinHash: session.pinHash, at: serverTimestamp() });
       batch.update(memberRef(code, me), { wishlist: text, updatedAt: serverTimestamp() });
       await batch.commit();
       saved = text;
-      status(["Saved ✓", "저장됨 ✓"]);
+      if (textarea.value.slice(0, MAX_WISHLIST) === saved) status("saved"); // else still typing: keep "Saving…"
     } catch (err) {
       if (err && err.code === "permission-denied") {
         clearSession(code);
         return renderPin(code, group, me, ["Please enter your PIN again.", "비밀번호를 다시 입력하세요."]);
       }
       console.error(err);
-      status(["Couldn't save. Will retry.", "저장하지 못했어요. 다시 시도할게요."]);
+      status("error");
       timer = setTimeout(save, 4000);
     } finally {
       saving = false;
@@ -878,7 +890,7 @@ function renderDashboard(code, group, session) {
 
   textarea.addEventListener("input", () => {
     if (saved === null) saved = ""; // typed before the old list loaded; don't overwrite their typing
-    status(null);
+    status("saving");
     clearTimeout(timer);
     timer = setTimeout(save, 1000);
   });

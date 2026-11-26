@@ -15,6 +15,7 @@
   --danger-bg: #f5e4e3;
   --ok: #3d7560;
   --ok-bg: #e0eee8;
+  --warn: #b08214;
   --radius: 22px;
   --shadow: 0 14px 34px -16px rgba(30, 42, 54, 0.32), 0 2px 6px rgba(30, 42, 54, 0.06);
 }
@@ -515,7 +516,28 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .key:active { background: rgba(75, 107, 140, 0.18); transform: scale(0.94); }
 .key-del { color: var(--muted); }
 
-.save-status { min-height: 1.3em; margin-top: 0.4rem; font-size: 0.85rem; font-weight: 600; color: var(--muted); text-align: right; }
+.save-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  min-height: 1.4em;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.save-status.saving { color: var(--warn); }
+.save-status.saved { color: var(--ok); }
+.save-status.error { color: var(--danger); }
+.mini-spinner {
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
 
 /* ---------- Host actions ---------- */
 .host-actions { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.8rem; }
