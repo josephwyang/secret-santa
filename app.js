@@ -16,6 +16,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  deleteDoc,
   writeBatch,
   onSnapshot,
   serverTimestamp,
@@ -467,7 +468,27 @@ function renderHostView(code, group, { justCreated = false } = {}) {
       <ul class="status-list" id="status"></ul>
     </section>
 
-    <button class="btn-secondary" id="play">${bi("Open as participant", "참여자로 열기")}</button>
+    <section class="card" id="reveal-card" hidden>
+      <h2>${bi("Who's buying for whom", "누가 누구에게")}</h2>
+      <ul class="status-list">
+        ${group.names
+          .map((name, i) => `<li class="status">
+            <span class="status-name">${esc(name)}</span>
+            <span class="pair-arrow" aria-hidden="true">→</span>
+            <span class="status-name pair-to">${esc(group.names[group.giftees[i]] ?? "?")}</span>
+          </li>`)
+          .join("")}
+      </ul>
+    </section>
+
+    <div class="host-actions">
+      <div class="btn-row">
+        <button class="btn-secondary" id="play">${bi("Open as participant", "참여자로 열기")}</button>
+        <button class="btn-secondary" id="reveal">${bi("Reveal all", "전체 공개")}</button>
+      </div>
+      <button class="btn-danger" id="delete">${bi("Delete group", "그룹 삭제")}</button>
+      <div id="host-msg"></div>
+    </div>
 
     <button class="btn-ghost" id="back">${bi("← My groups", "← 내 그룹")}</button>`, { top: true });
 
@@ -501,6 +522,52 @@ function renderHostView(code, group, { justCreated = false } = {}) {
   $("#copy").addEventListener("click", (e) => copyLink(code, e.currentTarget));
   $("#play").addEventListener("click", () => go(code));
   $("#back").addEventListener("click", () => go(null));
+
+  const revealBtn = $("#reveal");
+  revealBtn.addEventListener("click", () => {
+    const card = $("#reveal-card");
+    if (card.hidden) {
+      const ok = window.confirm(L(
+        "Show who is buying for whom? If you're playing too, this spoils your surprise.",
+        "누가 누구에게 선물하는지 볼까요? 직접 참여 중이라면 깜짝 선물이 미리 공개돼요."
+      ));
+      if (!ok) return;
+      card.hidden = false;
+      revealBtn.innerHTML = bi("Hide", "숨기기");
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } else {
+      card.hidden = true;
+      revealBtn.innerHTML = bi("Reveal all", "전체 공개");
+    }
+  });
+
+  const deleteBtn = $("#delete");
+  deleteBtn.addEventListener("click", async () => {
+    const ok = window.confirm(L(
+      `Delete "${groupLabel(code, group)}"? Everyone's PINs and wishlists will be erased. This can't be undone.`,
+      `"${groupLabel(code, group)}" 그룹을 삭제할까요? 모든 비밀번호와 위시리스트가 지워지며 되돌릴 수 없어요.`
+    ));
+    if (!ok) return;
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = bi("Deleting…", "삭제 중…");
+    try {
+      // Members, PINs and proofs first (the rules check ownership via the group doc), then the group.
+      const batch = writeBatch(db);
+      group.names.forEach((_, i) => {
+        batch.delete(memberRef(code, i));
+        batch.delete(pinRef(code, i));
+        batch.delete(proofRef(code, i));
+      });
+      await batch.commit();
+      await deleteDoc(groupRef(code));
+      go(null);
+    } catch (err) {
+      console.error(err);
+      deleteBtn.disabled = false;
+      deleteBtn.innerHTML = bi("Delete group", "그룹 삭제");
+      showMsg($("#host-msg"), "error", MSG.generic);
+    }
+  });
 }
 
 // "Host view" button on participant pages, shown only to the signed-in host.

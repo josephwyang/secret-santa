@@ -516,3 +516,18 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .key-del { color: var(--muted); }
 
 .save-status { min-height: 1.3em; margin-top: 0.4rem; font-size: 0.85rem; font-weight: 600; color: var(--muted); text-align: right; }
+
+/* ---------- Host actions ---------- */
+.host-actions { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.8rem; }
+.btn-row { display: flex; gap: 0.7rem; }
+.btn-row > button { flex: 1; min-width: 0; }
+.btn-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1.5px solid rgba(169, 80, 76, 0.25);
+  box-shadow: none;
+}
+.btn-danger:hover { background: #f0d8d6; }
+.pair-arrow { color: var(--muted); flex: 0 0 auto; }
+.pair-to { text-align: right; }
+[hidden] { display: none !important; }

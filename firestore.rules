@@ -10,6 +10,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // The signed-in host who created the group. In a batch this reads the group as it was
+    // before the batch, so the host can delete the group and its subcollections together.
+    function isOwner(code) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/groups/$(code)).data.ownerUid == request.auth.uid;
+    }
+
     match /groups/{code} {
       // Anyone with the code can open a group. Only the signed-in host can list their own groups.
       allow get: if true;
@@ -25,7 +32,8 @@ service cloud.firestore {
         && request.resource.data.names.size() <= 50
         && request.resource.data.giftees is list
         && request.resource.data.giftees.size() == request.resource.data.names.size();
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
 
       match /members/{memberId} {
         allow read: if true;
@@ -48,7 +56,7 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/groups/$(code)/proofs/$(memberId)).data.pinHash
              == get(/databases/$(database)/documents/groups/$(code)/pins/$(memberId)).data.pinHash;
 
-        allow delete: if false;
+        allow delete: if isOwner(code);
       }
 
       match /pins/{memberId} {
@@ -57,7 +65,8 @@ service cloud.firestore {
           && request.resource.data.pinHash is string
           && !exists(/databases/$(database)/documents/groups/$(code)/members/$(memberId))
           && existsAfter(/databases/$(database)/documents/groups/$(code)/members/$(memberId));
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if isOwner(code);
       }
 
       match /proofs/{memberId} {
@@ -65,7 +74,7 @@ service cloud.firestore {
         allow create, update: if request.resource.data.keys().hasOnly(['pinHash', 'at'])
           && request.resource.data.pinHash is string
           && request.resource.data.at == request.time;
-        allow delete: if false;
+        allow delete: if isOwner(code);
       }
     }
   }

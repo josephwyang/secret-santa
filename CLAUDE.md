@@ -15,7 +15,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 | `README.md` | User-facing setup/deploy docs |
 
 ## Data model (see header of `firestore.rules`)
-- `groups/{code}` — `{ title?, names[], giftees[], ownerUid, createdAt }`, code matches `^[A-HJ-NP-Z]{6}$`. Anyone can `get`; `list` only where `ownerUid == auth.uid`; `create` requires sign-in with `ownerUid == auth.uid`. (The old `hostKeyHash` and `#host=` links were removed on 2026-11-26.)
+- `groups/{code}` — `{ title?, names[], giftees[], ownerUid, createdAt }`, code matches `^[A-HJ-NP-Z]{6}$`. Anyone can `get`; `list` only where `ownerUid == auth.uid`; `create` requires sign-in with `ownerUid == auth.uid`; `delete` only by the owner. The subcollection docs can be deleted by the owner (rules function `isOwner(code)` reads the group doc). (The old `hostKeyHash` and `#host=` links were removed on 2026-11-26.)
 - `groups/{code}/members/{i}` — `{ wishlist, updatedAt }`, created together with the PIN
 - `groups/{code}/pins/{i}` — `{ pinHash }`, never readable
 - `groups/{code}/proofs/{i}` — `{ pinHash, at }`, never readable; written alongside each wishlist update
@@ -27,7 +27,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 - **Vertical centering:** `render(html, { top })` wraps each view in `.view` inside `main`. Participant screens get `main.is-centered`, which centers them with auto margins when they fit and leaves them at the top when they're taller. Host screens (signed-in home, create, host view) pass `{ top: true }`.
 - The wishlist **autosaves** (1 s after typing stops, on blur, on tab hide, and when leaving the view). There is no Save button. Each save writes a fresh proof plus the member update in one batch.
 - The PIN screen is a minimal number pad with no card (`.card.pin-screen` makes it transparent) (`renderPin`): it moves on as soon as the 4th digit is entered. A new PIN is entered twice; a wrong PIN shakes the dots. It also accepts keyboard digits and Backspace. The keys are sized with `dvh` so the screen fits on a phone without scrolling.
-- `?g=CODE&view=host` — host view (share/copy link, PIN progress, "Open as participant"). Not the owner → sign-in prompt, or falls back to the participant view.
+- `?g=CODE&view=host` — host view: share/copy link and PIN progress, then a row with "Open as participant" and "Reveal all" (asks first, then toggles a list of who buys for whom), then "Delete group" (asks first; deletes members/pins/proofs in one batch, then the group doc). Not the owner → sign-in prompt, or falls back to the participant view.
 - Language: `<html lang>` is `en` or `ko`. Every string renders both `<span class="en">` and `<span class="ko">`, and CSS hides the other one, so the toggle (`#lang` in index.html) needs no re-render. The toggle label shows the **currently active** language (English / 한국어), not the one it switches to. `bi(en, ko)` builds the spans, `L(en, ko)` returns a plain string, and `ph()`/`al()` build translatable placeholder and aria-label attributes. The choice is stored in localStorage `secret-santa:lang`; the default comes from `navigator.language`.
 
 ## Commands
