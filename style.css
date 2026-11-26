@@ -446,23 +446,26 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .banner { margin-bottom: 1.1rem; }
 
 /* ---------- PIN number pad ---------- */
-.pin-screen {
+/* Minimal, lock-screen style: no card, just title, dots and plain number keys. */
+.card.pin-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding-top: 1rem;
-  padding-bottom: 0.4rem;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 1rem 0 0;
 }
-.pin-name { margin: 0; font-weight: 700; color: var(--muted); overflow-wrap: anywhere; }
-.pin-screen h2 { margin: 0.2rem 0 0; }
+.pin-name { margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--muted); overflow-wrap: anywhere; }
+.pin-screen h2 { margin: 0.15rem 0 0; font-size: 1.25rem; font-weight: 600; }
 
-.pin-dots { display: flex; gap: 1.1rem; margin: 1rem 0 0.3rem; }
+.pin-dots { display: flex; gap: 1.2rem; margin: 1.6rem 0 0.4rem; }
 .pin-dots span {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 0.85rem;
+  height: 0.85rem;
   border-radius: 50%;
-  border: 2px solid var(--accent);
+  border: 1.5px solid var(--accent);
   transition: background 0.12s ease, transform 0.12s ease;
 }
 .pin-dots span.on { background: var(--accent); transform: scale(1.08); }
@@ -473,7 +476,7 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
   40%, 80% { transform: translateX(9px); }
 }
 
-.pin-msg { min-height: 1.4em; margin-bottom: 0.3rem; font-size: 0.9rem; font-weight: 600; color: var(--muted); }
+.pin-msg { min-height: 1.4em; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--muted); }
 
 .keypad {
   display: grid;
@@ -490,8 +493,8 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
   min-height: 0;
   padding: 0;
   border-radius: 50%;
-  font-size: calc(var(--key) * 0.46);
-  font-weight: 600;
+  font-size: calc(var(--key) * 0.44);
+  font-weight: 500;
   color: var(--ink);
   background: transparent;
   box-shadow: none;
