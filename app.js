@@ -966,7 +966,7 @@ function renderDashboard(code, group, session) {
   );
 
   /* ----- "I'll get it" / undo ----- */
-  app.addEventListener("click", async (e) => {
+  const onMarkClick = async (e) => {
     const btn = e.target.closest("[data-mark]");
     if (!btn || btn.disabled) return;
     const id = btn.dataset.mark;
@@ -988,7 +988,10 @@ function renderDashboard(code, group, session) {
     } finally {
       busy.delete(id);
     }
-  });
+  };
+  // #app outlives this screen, so remove the listener when leaving it.
+  app.addEventListener("click", onMarkClick);
+  cleanups.push(() => app.removeEventListener("click", onMarkClick));
 
   /* ----- My own list: add / remove, saved right away ----- */
   const statusEl = $("#save-msg");
