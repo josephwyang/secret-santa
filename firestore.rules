@@ -7,6 +7,9 @@ rules_version = '2';
 //   groups/{code}/pins/{i}        { pinHash }               (never readable)
 //   groups/{code}/proofs/{i}      { pinHash, at }           (never readable; written with each change
 //                                                            to prove the PIN without exposing it)
+//   groups/{code}/marks/{owner}_{key}  { owner: int, by: int, at }  ("I'll get it" on one item of
+//                                 owner's wishlist; key = 16 hex of sha256(item). The app never shows
+//                                 an owner the marks on their own list.)
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -15,6 +18,13 @@ service cloud.firestore {
     function isOwner(code) {
       return request.auth != null
         && get(/databases/$(database)/documents/groups/$(code)).data.ownerUid == request.auth.uid;
+    }
+
+    // Person i wrote a fresh proof of their PIN in this same batch.
+    function proven(code, i) {
+      return getAfter(/databases/$(database)/documents/groups/$(code)/proofs/$(string(i))).data.at == request.time
+        && getAfter(/databases/$(database)/documents/groups/$(code)/proofs/$(string(i))).data.pinHash
+           == get(/databases/$(database)/documents/groups/$(code)/pins/$(string(i))).data.pinHash;
     }
 
     match /groups/{code} {
@@ -75,6 +85,26 @@ service cloud.firestore {
           && request.resource.data.pinHash is string
           && request.resource.data.at == request.time;
         allow delete: if isOwner(code);
+      }
+
+      match /marks/{markId} {
+        allow read: if true;
+        // Only one person can claim an item: a second create hits an existing doc (an update) and is denied.
+        allow create: if request.resource.data.keys().hasOnly(['owner', 'by', 'at'])
+          && request.resource.data.owner is int
+          && request.resource.data.by is int
+          && request.resource.data.owner != request.resource.data.by
+          && request.resource.data.owner >= 0
+          && request.resource.data.by >= 0
+          && request.resource.data.owner < get(/databases/$(database)/documents/groups/$(code)).data.names.size()
+          && request.resource.data.by < get(/databases/$(database)/documents/groups/$(code)).data.names.size()
+          && markId.matches('^[0-9]{1,2}_[0-9a-f]{16}$')
+          && markId.split('_')[0] == string(request.resource.data.owner)
+          && request.resource.data.at == request.time
+          && proven(code, request.resource.data.by);
+        allow update: if false;
+        // The person who claimed it can undo; the host can clear marks when deleting the group.
+        allow delete: if proven(code, resource.data.by) || isOwner(code);
       }
     }
   }

@@ -4,7 +4,8 @@ A Secret Santa web app for GitHub Pages, with English and Korean instructions.
 
 - The host signs in with Google and creates a group by entering everyone's names. The app assigns everyone at random (nobody gets themselves) and gives the group a 6-letter code.
 - The host shares the group link (`https://<you>.github.io/secret-santa/?g=ABCDEF`). There's no "join with a code" form: if someone loses the link, the host opens the group from **Your groups** and sends it again.
-- Each person opens the link, picks their name, and sets a 4-digit PIN. After that they can see who they're buying for, read that person's wishlist, and edit their own.
+- Each person opens the link, picks their name, and sets a 4-digit PIN. After that they can see who they're buying for and edit their own wishlist, one gift at a time.
+- Everyone can also see everyone else's wishlists for smaller gifts. Tapping **I'll get it** on a gift shows it as taken to everyone else, so nobody buys the same thing twice. People never see what has been claimed from their own list.
 - **Host view:** groups are saved to the host's Google account. The host can see who has set a PIN so far, which shows who has joined, without seeing who drew whom. Hosts who are also playing use **Open as participant**.
 - **Language:** the globe button in the top corner switches between English and Korean. The choice is remembered on that device.
 

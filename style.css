@@ -296,15 +296,6 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
   overflow-wrap: anywhere;
 }
 
-.wishlist-view {
-  min-height: 3.4rem;
-  padding: 1rem 1.1rem;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
 .empty { color: var(--muted); font-style: italic; }
 
 /* ---------- Host view ---------- */
@@ -544,7 +535,7 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 
 /* ---------- Button groups ---------- */
 /* Button groups above a "← Back"-style ghost link: 0.7rem between buttons, small gap before the link. */
-.actions { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.1rem; }
+.actions { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.4rem; }
 .actions > div:empty { display: none; }
 .btn-row { display: flex; gap: 0.7rem; }
 .btn-row > button { flex: 1; min-width: 0; }
@@ -558,3 +549,102 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .pair-arrow { color: var(--muted); flex: 0 0 auto; }
 .pair-to { text-align: right; }
 [hidden] { display: none !important; }
+
+/* ---------- Wishlists: gift rows with "I'll get it" ---------- */
+.gift-list { list-style: none; margin: 0.3rem 0 0; padding: 0; }
+.gift {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.gift:last-child { border-bottom: 0; }
+.gift-text { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.gift-empty { padding: 0.5rem 0; color: var(--muted); font-style: italic; }
+
+.gift-btn {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 2.6rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: var(--surface);
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  box-shadow: none;
+  white-space: nowrap;
+}
+.gift-btn:hover { background: rgba(75, 107, 140, 0.08); }
+.gift.is-mine .gift-btn { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+.gift.is-taken .gift-text { color: var(--muted); text-decoration: line-through; font-weight: 500; }
+.gift.is-taken .gift-btn,
+.gift.is-taken .gift-btn:disabled {
+  opacity: 1;
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--line);
+  cursor: default;
+}
+
+/* My own list: rows with a remove button */
+.my-items { list-style: none; margin: 0; padding: 0; }
+.my-items:empty { display: none; }
+.my-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.4rem 0.55rem 0.9rem;
+  margin-top: 0.5rem;
+  background: var(--surface-2);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+}
+.my-item .remove {
+  flex: 0 0 auto;
+  width: 2.4rem;
+  min-height: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+.my-item .remove:hover { background: #dde4eb; color: var(--danger); }
+
+/* Everyone else: one row per person, tap to open their list */
+.people { margin-top: 0.2rem; }
+.person { border-bottom: 1px solid var(--line); }
+.person:last-child { border-bottom: 0; }
+.person-head {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 0.6rem;
+  min-height: 3.4rem;
+  padding: 0.6rem 0.2rem;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+  font-size: 1.05rem;
+}
+.person-head:hover { background: transparent; }
+.person-name { flex: 1; text-align: left; overflow-wrap: anywhere; }
+.person-count {
+  min-width: 1.6rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.person-count:empty { display: none; }
+.chevron { color: var(--muted); transition: transform 0.15s ease; flex: 0 0 auto; }
+.person-head[aria-expanded="true"] .chevron { transform: rotate(90deg); }
+.person .gift-list { margin: 0 0 0.6rem; padding-left: 0.2rem; }

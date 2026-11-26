@@ -30,6 +30,7 @@ const MAX_PEOPLE = 50;
 const MAX_NAME = 40;
 const MAX_TITLE = 60;
 const MAX_WISHLIST = 5000;
+const MAX_ITEM = 200;
 
 /* ---------- Firebase ---------- */
 const configured =
@@ -143,6 +144,28 @@ async function sha256(text) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 const hashPin = (code, memberId, pin) => sha256(`secret-santa:${code}:${memberId}:${pin}`);
+
+// A wishlist is stored as one string with one gift per line.
+function splitItems(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+// Stable 16-hex id for a gift (case and spacing ignored), used for "I'll get it" marks.
+function itemKey(text) {
+  const t = String(text).toLowerCase().replace(/\s+/g, " ").trim();
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < t.length; i++) {
+    const c = t.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(16).padStart(8, "0") + (h1 >>> 0).toString(16).padStart(8, "0");
+}
 
 const isOwner = (group) => !!(user && group && group.ownerUid === user.uid);
 const groupLabel = (code, group) => (group && group.title ? group.title : code);
@@ -553,7 +576,13 @@ function renderHostView(code, group, { justCreated = false } = {}) {
     deleteBtn.disabled = true;
     deleteBtn.innerHTML = bi("Deleting…", "삭제 중…");
     try {
-      // Members, PINs and proofs first (the rules check ownership via the group doc), then the group.
+      // Marks, then members/PINs/proofs (the rules check ownership via the group doc), then the group.
+      const markDocs = (await getDocs(collection(db, "groups", code, "marks"))).docs;
+      for (let k = 0; k < markDocs.length; k += 400) {
+        const mb = writeBatch(db);
+        markDocs.slice(k, k + 400).forEach((d) => mb.delete(d.ref));
+        await mb.commit();
+      }
       const batch = writeBatch(db);
       group.names.forEach((_, i) => {
         batch.delete(memberRef(code, i));
@@ -795,6 +824,7 @@ function renderDashboard(code, group, session) {
   const myName = group.names[me];
   const gifteeIndex = group.giftees[me];
   const gifteeName = group.names[gifteeIndex];
+  const others = group.names.map((_, i) => i).filter((i) => i !== me && i !== gifteeIndex);
 
   render(`
     <div class="topbar">
@@ -806,41 +836,167 @@ function renderDashboard(code, group, session) {
       <p class="label">${bi("Your gift is for", "선물할 사람")}</p>
       <div class="giftee-name">${esc(gifteeName)}</div>
       <p class="label">${bi(`${gifteeName} wants`, `${gifteeName}님이 원하는 것`)}</p>
-      <div id="their-list" class="wishlist-view"><span class="empty">…</span></div>
+      <ul class="gift-list" id="list-${gifteeIndex}"></ul>
     </section>
 
     <section class="card stack">
       <h2>${bi("What do you want?", "받고 싶은 선물")}</h2>
-      <textarea id="my-list" rows="7" maxlength="${MAX_WISHLIST}"
-        ${ph("e.g. warm socks, a book…", "예: 따뜻한 양말, 책…")}
-        ${al("What do you want?", "받고 싶은 선물")}></textarea>
+      <form id="add-item" class="row" novalidate>
+        <input id="item" maxlength="${MAX_ITEM}" autocomplete="off" ${ph("e.g. warm socks", "예: 따뜻한 양말")} ${al("Gift", "선물")}>
+        <button type="submit" id="add-btn" disabled>${bi("Add", "추가")}</button>
+      </form>
+      <ul class="my-items" id="my-items"></ul>
       <div class="save-status" id="save-msg" role="status"></div>
     </section>
+
+    ${others.length ? `
+    <section class="card">
+      <h2>${bi("Everyone else", "다른 사람들")}</h2>
+      ${instr("Tap “I'll get it” so no one buys the same gift.", "같은 선물을 사지 않도록 ‘제가 살게요’를 눌러주세요.")}
+      <div class="people">
+        ${others.map((i) => `
+          <div class="person">
+            <button type="button" class="person-head" data-person="${i}" aria-expanded="false">
+              <span class="person-name">${esc(group.names[i])}</span>
+              <span class="person-count" id="count-${i}"></span>
+              <svg class="chevron" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+            <ul class="gift-list" id="list-${i}" hidden></ul>
+          </div>`).join("")}
+      </div>
+    </section>` : ""}
     ${hostButton(group)}`);
   wireHostButton(code);
 
-  // Live view of the person you're buying for.
-  const unsub = onSnapshot(
-    memberRef(code, gifteeIndex),
+  /* ----- Live data: everyone's lists, and "I'll get it" marks ----- */
+  const lists = new Map();   // member index -> [item text]
+  const marks = new Map();   // "owner_key" -> by (member index)
+  const busy = new Set();    // marks being written, to ignore double taps
+  let myItems = null;        // my own list; null until loaded
+
+  function markState(id) {
+    if (!marks.has(id)) return "free";
+    return marks.get(id) === me ? "mine" : "taken";
+  }
+
+  function giftRows(owner) {
+    const items = lists.get(owner) || [];
+    if (!items.length) return `<li class="gift-empty">${bi("Nothing yet.", "아직 없어요.")}</li>`;
+    const seen = new Set();
+    return items
+      .map((item) => {
+        const id = `${owner}_${itemKey(item)}`;
+        if (seen.has(id)) return "";
+        seen.add(id);
+        const state = markState(id);
+        const label =
+          state === "mine" ? bi("✓ You're getting this", "✓ 내가 사요")
+          : state === "taken" ? bi("Taken", "다른 사람이 사요")
+          : bi("I'll get it", "제가 살게요");
+        return `<li class="gift is-${state}">
+          <span class="gift-text">${esc(item)}</span>
+          <button type="button" class="gift-btn" data-mark="${id}" data-owner="${owner}" ${state === "taken" ? "disabled" : ""}>${label}</button>
+        </li>`;
+      })
+      .join("");
+  }
+
+  function drawLists() {
+    for (const owner of [gifteeIndex, ...others]) {
+      const el = $(`#list-${owner}`);
+      if (el) el.innerHTML = giftRows(owner);
+      const count = $(`#count-${owner}`);
+      if (count) {
+        const n = (lists.get(owner) || []).length;
+        count.textContent = n ? String(n) : "";
+      }
+    }
+  }
+
+  function drawMine() {
+    const el = $("#my-items");
+    if (!el || !myItems) return;
+    el.innerHTML = myItems.length
+      ? myItems
+          .map((item, k) => `<li class="my-item"><span class="gift-text">${esc(item)}</span>
+            <button type="button" class="remove" data-remove="${k}" ${al(`Remove ${item}`, `${item} 삭제`)}>×</button></li>`)
+          .join("")
+      : "";
+  }
+
+  drawLists();
+  cleanups.push(onSnapshot(
+    collection(db, "groups", code, "members"),
     (snap) => {
-      const el = $("#their-list");
-      if (!el) return;
-      const text = snap.exists() ? String(snap.data().wishlist || "").trim() : "";
-      if (text) el.textContent = text;
-      else el.innerHTML = `<span class="empty">${bi("Nothing yet.", "아직 없어요.")}</span>`;
+      lists.clear();
+      snap.docs.forEach((d) => lists.set(Number(d.id), splitItems(d.data().wishlist)));
+      if (myItems === null) {
+        myItems = [...(lists.get(me) || [])];
+        $("#add-btn").disabled = false;
+        drawMine();
+      }
+      drawLists();
     },
     (err) => console.error(err)
-  );
-  cleanups.push(unsub);
+  ));
+  cleanups.push(onSnapshot(
+    collection(db, "groups", code, "marks"),
+    (snap) => {
+      marks.clear();
+      // Never keep marks on my own list: the owner must not know what's been bought.
+      snap.docs.forEach((d) => { const m = d.data(); if (m.owner !== me) marks.set(d.id, m.by); });
+      drawLists();
+    },
+    (err) => console.error(err)
+  ));
 
-  // Load my own wishlist, then autosave a moment after typing stops (and when leaving the page).
-  const textarea = $("#my-list");
+  /* ----- Expand / collapse a person (one open at a time) ----- */
+  app.querySelectorAll("[data-person]").forEach((head) =>
+    head.addEventListener("click", () => {
+      const willOpen = head.getAttribute("aria-expanded") !== "true";
+      app.querySelectorAll("[data-person]").forEach((h) => {
+        h.setAttribute("aria-expanded", "false");
+        $(`#list-${h.dataset.person}`).hidden = true;
+      });
+      if (willOpen) {
+        head.setAttribute("aria-expanded", "true");
+        $(`#list-${head.dataset.person}`).hidden = false;
+      }
+    })
+  );
+
+  /* ----- "I'll get it" / undo ----- */
+  app.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-mark]");
+    if (!btn || btn.disabled) return;
+    const id = btn.dataset.mark;
+    const owner = Number(btn.dataset.owner);
+    const state = markState(id);
+    if (state === "taken" || busy.has(id)) return;
+    busy.add(id);
+    try {
+      const batch = writeBatch(db);
+      batch.set(proofRef(code, me), { pinHash: session.pinHash, at: serverTimestamp() });
+      const ref = doc(db, "groups", code, "marks", id);
+      if (state === "free") batch.set(ref, { owner, by: me, at: serverTimestamp() });
+      else batch.delete(ref);
+      // The marks listener shows the change right away and undoes it if the write is rejected
+      // (e.g. someone else claimed the item a moment earlier).
+      await batch.commit();
+    } catch (err) {
+      if (!(err && err.code === "permission-denied")) console.error(err);
+    } finally {
+      busy.delete(id);
+    }
+  });
+
+  /* ----- My own list: add / remove, saved right away ----- */
   const statusEl = $("#save-msg");
-  let saved = null;      // text last confirmed saved
-  let timer = null;
+  let saved = null;
   let saving = false;
   let again = false;
-  // Status line: amber spinner + "Saving…" from the first keystroke, green "✓ Saved" once Firestore confirms.
+  let retry = null;
+  // Amber spinner + "Saving" as soon as the list changes, green "✓ Saved" once Firestore confirms.
   function status(state) {
     if (!statusEl) return;
     statusEl.className = `save-status ${state || ""}`;
@@ -851,22 +1007,12 @@ function renderDashboard(code, group, session) {
       : "";
   }
 
-  getDoc(memberRef(code, me))
-    .then((snap) => {
-      const text = snap.exists() ? snap.data().wishlist || "" : "";
-      if (saved === null && !textarea.value) textarea.value = text;
-      if (saved === null) saved = text;
-    })
-    .catch((err) => console.error(err));
-
   async function save() {
-    clearTimeout(timer);
-    const text = textarea.value.slice(0, MAX_WISHLIST);
+    clearTimeout(retry);
+    if (!myItems) return;
     if (saving) { again = true; return; }
-    if (text === saved) {
-      if (statusEl && statusEl.classList.contains("saving")) status("saved"); // typed, then undid it
-      return;
-    }
+    const text = myItems.join("\n").slice(0, MAX_WISHLIST);
+    if (text === saved) return status("saved");
     saving = true;
     status("saving");
     try {
@@ -875,7 +1021,7 @@ function renderDashboard(code, group, session) {
       batch.update(memberRef(code, me), { wishlist: text, updatedAt: serverTimestamp() });
       await batch.commit();
       saved = text;
-      if (textarea.value.slice(0, MAX_WISHLIST) === saved) status("saved"); // else still typing: keep "Saving…"
+      if (myItems.join("\n").slice(0, MAX_WISHLIST) === saved) status("saved");
     } catch (err) {
       if (err && err.code === "permission-denied") {
         clearSession(code);
@@ -883,25 +1029,37 @@ function renderDashboard(code, group, session) {
       }
       console.error(err);
       status("error");
-      timer = setTimeout(save, 4000);
+      retry = setTimeout(save, 4000);
     } finally {
       saving = false;
       if (again) { again = false; save(); }
     }
   }
 
-  textarea.addEventListener("input", () => {
-    if (saved === null) saved = ""; // typed before the old list loaded; don't overwrite their typing
+  const input = $("#item");
+  $("#add-item").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!myItems) return;
+    const item = input.value.replace(/\s+/g, " ").trim().slice(0, MAX_ITEM);
+    if (!item) return;
+    input.value = "";
+    input.focus();
+    if (myItems.some((x) => itemKey(x) === itemKey(item))) return;
+    if ([...myItems, item].join("\n").length > MAX_WISHLIST) return;
+    if (saved === null) saved = myItems.join("\n");
+    myItems.push(item);
+    drawMine();
     status("saving");
-    clearTimeout(timer);
-    timer = setTimeout(save, 1000);
+    save();
   });
-  textarea.addEventListener("blur", save);
-  const onHide = () => { if (document.visibilityState === "hidden") save(); };
-  document.addEventListener("visibilitychange", onHide);
-  cleanups.push(() => {
-    document.removeEventListener("visibilitychange", onHide);
-    save(); // leaving this screen (e.g. "Not you?")
+  $("#my-items").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-remove]");
+    if (!b || !myItems) return;
+    if (saved === null) saved = myItems.join("\n");
+    myItems.splice(Number(b.dataset.remove), 1);
+    drawMine();
+    status("saving");
+    save();
   });
 
   $("#switch").addEventListener("click", () => {
