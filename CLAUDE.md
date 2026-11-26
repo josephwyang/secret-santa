@@ -27,7 +27,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 - `?g=CODE` — participant: pick name → PIN → dashboard (giftee + wishlist). The owner also sees a "Host view" button.
 - **Vertical centering:** `render(html, { top })` wraps each view in `.view` inside `main`. Participant screens get `main.is-centered`, which centers them with auto margins when they fit and leaves them at the top when they're taller. The create screen is centered too. Only the signed-in home (groups list) and the host view pass `{ top: true }`.
 - Participant dashboard (`renderDashboard`), top to bottom:
-  1. Santa card with the giftee's gift rows.
+  1. Santa card, labelled "You're the Secret Santa for" / "내가 시크릿 산타가 되어줄 사람", with the giftee's gift rows. (Everyone gives small gifts to everyone, so the label avoids saying "gift". Don't use "Your Secret Santa is", which reverses the meaning.)
   2. "What do you want?": add one gift at a time with an Add button and a × to remove. Each change saves immediately and silently (the user removed the Saving/Saved indicator); only an error line shows, with an automatic retry.
   3. "Everyone else": an accordion of the other members, one open at a time, each with gift rows.
 

@@ -833,7 +833,7 @@ function renderDashboard(code, group, session) {
     </div>
 
     <section class="card santa-card">
-      <p class="label">${bi("Your gift is for", "선물할 사람")}</p>
+      <p class="label">${bi("You're the Secret Santa for", "내가 시크릿 산타가 되어줄 사람")}</p>
       <div class="giftee-name">${esc(gifteeName)}</div>
       <p class="label">${bi(`${gifteeName} wants`, `${gifteeName}님이 원하는 것`)}</p>
       <ul class="gift-list" id="list-${gifteeIndex}"></ul>
