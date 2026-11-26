@@ -98,12 +98,15 @@ function showMsg(el, type, [en, ko]) {
 }
 
 let cleanups = [];
-function render(html) {
+// Participant screens sit vertically centered when they fit on screen (and start at the
+// top when they don't). Host screens ({ top: true }) always start at the top.
+function render(html, { top = false } = {}) {
   cleanups.forEach((fn) => {
     try { fn(); } catch { /* ignore */ }
   });
   cleanups = [];
-  app.innerHTML = html;
+  app.classList.toggle("is-centered", !top);
+  app.innerHTML = `<div class="view">${html}</div>`;
   window.scrollTo(0, 0);
 }
 const renderLoading = () =>
@@ -304,7 +307,7 @@ function renderHome(error) {
     <section class="card">
       <h2>${bi("Your groups", "내 그룹")}</h2>
       <ul class="group-list" id="groups"><li class="loading"><span class="spinner"></span></li></ul>
-    </section>`);
+    </section>`, { top: true });
   $("#create").addEventListener("click", renderCreate);
   if (error) showMsg($("#home-msg"), "error", error);
 
@@ -364,7 +367,7 @@ function renderCreate() {
     <button id="generate" disabled>${bi("Create group and draw names", "그룹 만들고 추첨하기")}</button>
     <div id="gen-msg"></div>
 
-    <button class="btn-ghost" id="back">${bi("← Back", "← 뒤로")}</button>`);
+    <button class="btn-ghost" id="back">${bi("← Back", "← 뒤로")}</button>`, { top: true });
 
   const input = $("#name");
   const genBtn = $("#generate");
@@ -466,7 +469,7 @@ function renderHostView(code, group, { justCreated = false } = {}) {
 
     <button class="btn-secondary" id="play">${bi("Open as participant", "참여자로 열기")}</button>
 
-    <button class="btn-ghost" id="back">${bi("← My groups", "← 내 그룹")}</button>`);
+    <button class="btn-ghost" id="back">${bi("← My groups", "← 내 그룹")}</button>`, { top: true });
 
   function draw(joined) {
     const n = joined.size;

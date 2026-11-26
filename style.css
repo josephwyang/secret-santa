@@ -27,6 +27,8 @@ html { font-size: 19px; background: var(--bg-2); }
 body {
   margin: 0;
   min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
     "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
   color: var(--ink);
@@ -36,8 +38,12 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Centered screens: auto margins center the view when there's room, and fall back to the top when it's taller than the screen. */
+main.is-centered > .view { margin-block: auto; }
+
 /* ---------- Header / footer ---------- */
 .site-header {
+  flex: 0 0 auto;
   position: relative;
   display: flex;
   align-items: center;
@@ -73,6 +79,10 @@ body {
 main {
   position: relative;
   z-index: 1;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   max-width: 640px;
   margin: 1rem auto 0;
   padding: 0 1rem calc(1rem + env(safe-area-inset-bottom));
