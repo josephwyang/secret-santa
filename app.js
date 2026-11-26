@@ -999,15 +999,11 @@ function renderDashboard(code, group, session) {
   let saving = false;
   let again = false;
   let retry = null;
-  // Amber spinner + "Saving" as soon as the list changes, green "✓ Saved" once Firestore confirms.
+  // Only problems are shown; normal saves are silent (each add/remove is one deliberate tap).
   function status(state) {
     if (!statusEl) return;
     statusEl.className = `save-status ${state || ""}`;
-    statusEl.innerHTML =
-      state === "saving" ? `<span class="mini-spinner" aria-hidden="true"></span>${bi("Saving", "저장 중")}`
-      : state === "saved" ? `<span aria-hidden="true">✓</span>${bi("Saved", "저장됨")}`
-      : state === "error" ? bi("Couldn't save. Will retry.", "저장하지 못했어요. 다시 시도할게요.")
-      : "";
+    statusEl.innerHTML = state === "error" ? bi("Couldn't save. Will retry.", "저장하지 못했어요. 다시 시도할게요.") : "";
   }
 
   async function save() {
@@ -1015,16 +1011,15 @@ function renderDashboard(code, group, session) {
     if (!myItems) return;
     if (saving) { again = true; return; }
     const text = myItems.join("\n").slice(0, MAX_WISHLIST);
-    if (text === saved) return status("saved");
+    if (text === saved) return;
     saving = true;
-    status("saving");
     try {
       const batch = writeBatch(db);
       batch.set(proofRef(code, me), { pinHash: session.pinHash, at: serverTimestamp() });
       batch.update(memberRef(code, me), { wishlist: text, updatedAt: serverTimestamp() });
       await batch.commit();
       saved = text;
-      if (myItems.join("\n").slice(0, MAX_WISHLIST) === saved) status("saved");
+      status(null);
     } catch (err) {
       if (err && err.code === "permission-denied") {
         clearSession(code);
@@ -1052,7 +1047,6 @@ function renderDashboard(code, group, session) {
     if (saved === null) saved = myItems.join("\n");
     myItems.push(item);
     drawMine();
-    status("saving");
     save();
   });
   $("#my-items").addEventListener("click", (e) => {
@@ -1061,7 +1055,6 @@ function renderDashboard(code, group, session) {
     if (saved === null) saved = myItems.join("\n");
     myItems.splice(Number(b.dataset.remove), 1);
     drawMine();
-    status("saving");
     save();
   });
 

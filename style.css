@@ -507,32 +507,9 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .key:active { background: rgba(75, 107, 140, 0.18); transform: scale(0.94); }
 .key-del { color: var(--muted); }
 
-.save-status {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.4rem;
-  /* Fixed height so the card doesn't grow when the status text appears. */
-  height: 1.5rem;
-  line-height: 1.5rem;
-  overflow: hidden;
-  margin-top: 0.4rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-.save-status.saving { color: var(--warn); }
-.save-status.saved { color: var(--ok); }
+.save-status { margin-top: 0.4rem; font-size: 0.85rem; font-weight: 600; text-align: right; }
+.save-status:empty { display: none; }
 .save-status.error { color: var(--danger); }
-.mini-spinner {
-  width: 0.9em;
-  height: 0.9em;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  animation: spin 0.7s linear infinite;
-}
-
 /* ---------- Button groups ---------- */
 /* Button groups above a "← Back"-style ghost link: 0.7rem between buttons, small gap before the link. */
 .actions { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.4rem; }

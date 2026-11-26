@@ -28,7 +28,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 - **Vertical centering:** `render(html, { top })` wraps each view in `.view` inside `main`. Participant screens get `main.is-centered`, which centers them with auto margins when they fit and leaves them at the top when they're taller. The create screen is centered too. Only the signed-in home (groups list) and the host view pass `{ top: true }`.
 - Participant dashboard (`renderDashboard`), top to bottom:
   1. Santa card with the giftee's gift rows.
-  2. "What do you want?": add one gift at a time with an Add button and a × to remove. Each change saves immediately, showing an amber spinner with "Saving", then a green "✓ Saved".
+  2. "What do you want?": add one gift at a time with an Add button and a × to remove. Each change saves immediately and silently (the user removed the Saving/Saved indicator); only an error line shows, with an automatic retry.
   3. "Everyone else": an accordion of the other members, one open at a time, each with gift rows.
 
   Each gift row has a pill: "I'll get it", "✓ You're getting this" (tap to undo) or "Taken". Live `onSnapshot` listeners on the `members` and `marks` collections drive it. Host "Delete group" also deletes all marks, in chunks of 400.
