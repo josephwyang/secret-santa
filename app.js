@@ -368,7 +368,7 @@ function renderCreate() {
     <button id="generate" disabled>${bi("Create group and draw names", "그룹 만들고 추첨하기")}</button>
     <div id="gen-msg"></div>
 
-    <button class="btn-ghost" id="back">${bi("← Back", "← 뒤로")}</button>`, { top: true });
+    <button class="btn-ghost" id="back">${bi("← Back", "← 뒤로")}</button>`);
 
   const input = $("#name");
   const genBtn = $("#generate");
