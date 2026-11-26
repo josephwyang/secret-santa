@@ -262,10 +262,6 @@ function renderHome(error) {
     render(`
       <section class="card stack">
         <h2>${bi("Create a Secret Santa", "시크릿 산타 만들기")}</h2>
-        ${instr(
-          "Sign in with Google to create a group. Your groups are saved to your account, so you can check progress and resend the link anytime.",
-          "Google로 로그인하여 그룹을 만드세요. 그룹이 계정에 저장되어 언제든지 진행 상황을 확인하고 링크를 다시 보낼 수 있습니다."
-        )}
         <button id="sign-in">${bi("Sign in with Google", "Google로 로그인")}</button>
         <div id="home-msg"></div>
       </section>`);
@@ -277,9 +273,7 @@ function renderHome(error) {
   render(`
     ${accountBar()}
     <section class="card stack">
-      <h2>${bi("Create a new group", "새 그룹 만들기")}</h2>
-      ${instr("Start a Secret Santa for your friends, family, or team.", "친구, 가족, 팀과 함께 시크릿 산타를 시작하세요.")}
-      <button id="create">${bi("Create group", "그룹 만들기")}</button>
+      <button id="create">${bi("+ New group", "+ 새 그룹")}</button>
       <div id="home-msg"></div>
     </section>
 
@@ -300,7 +294,7 @@ function renderHome(error) {
         .map((d) => ({ code: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       if (!groups.length) {
-        el.innerHTML = `<li class="empty">${bi("No groups yet. Create one above!", "아직 그룹이 없어요. 위에서 만들어 보세요!")}</li>`;
+        el.innerHTML = `<li class="empty">${bi("No groups yet.", "아직 그룹이 없어요.")}</li>`;
         return;
       }
       el.innerHTML = groups
@@ -329,15 +323,12 @@ function renderCreate() {
 
   render(`
     <section class="card stack">
-      <h2>${bi("Create a new group", "새 그룹 만들기")}</h2>
+      <h2>${bi("New group", "새 그룹")}</h2>
       <div>
         <label class="field-label" for="title">${bi("Group name (optional)", "그룹 이름 (선택)")}</label>
         <input id="title" maxlength="${MAX_TITLE}" autocomplete="off" ${ph("e.g. Family Christmas 2026", "예: 2026 가족 크리스마스")}>
       </div>
-      ${instr(
-        `Add the name of everyone who's joining, including yourself if you're playing. You need at least ${MIN_PEOPLE} people.`,
-        `본인을 포함해 참여하는 모든 사람의 이름을 추가하세요. 최소 ${MIN_PEOPLE}명이 필요합니다.`
-      )}
+      ${instr(`Add everyone's names (at least ${MIN_PEOPLE}).`, `참여자 이름을 모두 추가하세요 (최소 ${MIN_PEOPLE}명).`)}
       <form id="add" class="row" novalidate>
         <input id="name" maxlength="${MAX_NAME}" autocomplete="off" ${ph("Name", "이름")} ${al("Name", "이름")}>
         <button type="submit">${bi("Add", "추가")}</button>
@@ -347,14 +338,8 @@ function renderCreate() {
       <p class="count" id="count"></p>
     </section>
 
-    <section class="card stack">
-      ${instr(
-        "Double-check the names. They can't be changed after the group is created.",
-        "이름을 다시 확인하세요. 그룹이 만들어진 후에는 변경할 수 없습니다."
-      )}
-      <button id="generate" disabled>${bi("Create group and draw names", "그룹 만들고 추첨하기")}</button>
-      <div id="gen-msg"></div>
-    </section>
+    <button id="generate" disabled>${bi("Create group and draw names", "그룹 만들고 추첨하기")}</button>
+    <div id="gen-msg"></div>
 
     <button class="btn-ghost" id="back">${bi("← Back", "← 뒤로")}</button>`);
 
@@ -440,14 +425,11 @@ function renderHostView(code, group, { justCreated = false } = {}) {
 
   render(`
     ${accountBar()}
-    ${justCreated ? `<div class="msg ok banner" role="status">${bi("Your group is ready! Names have been drawn.", "그룹이 준비되었어요! 추첨이 완료되었습니다.")}</div>` : ""}
+    ${justCreated ? `<div class="msg ok banner" role="status">${bi("Done! Names are drawn.", "완료! 추첨이 끝났어요.")}</div>` : ""}
 
     <section class="card stack center">
       <h2>${esc(groupLabel(code, group))}</h2>
-      ${instr(
-        "Send this link to everyone in the group. If someone loses it, just send it again.",
-        "이 링크를 그룹의 모든 사람에게 보내세요. 링크를 잃어버린 사람이 있으면 다시 보내면 됩니다."
-      )}
+      ${instr("Send this link to everyone.", "이 링크를 모두에게 보내세요.")}
       <div class="code-display">${code}</div>
       <button id="share">${bi("Share group link", "그룹 링크 공유")}</button>
       <button class="btn-secondary" id="copy">${bi("Copy group link", "그룹 링크 복사")}</button>
@@ -455,22 +437,12 @@ function renderHostView(code, group, { justCreated = false } = {}) {
 
     <section class="card">
       <h2>${bi("Who's joined", "참여 현황")}</h2>
-      ${instr(
-        "Here's who has opened the link and set their PIN. Assignments stay hidden, even from you.",
-        "링크를 열고 PIN을 설정한 사람을 확인할 수 있습니다. 배정 결과는 호스트에게도 공개되지 않습니다."
-      )}
       <p class="progress" id="progress"></p>
       <div class="progress-bar"><span id="bar"></span></div>
       <ul class="status-list" id="status"></ul>
     </section>
 
-    <section class="card stack">
-      ${instr(
-        "Playing too? Open the group as a participant to see who you're buying for.",
-        "직접 참여하시나요? 참여자로 그룹을 열어 누구에게 선물할지 확인하세요."
-      )}
-      <button class="btn-secondary" id="play">${bi("Open as participant", "참여자로 열기")}</button>
-    </section>
+    <button class="btn-secondary" id="play">${bi("Open as participant", "참여자로 열기")}</button>
 
     <button class="btn-ghost" id="back">${bi("← My groups", "← 내 그룹")}</button>`);
   wireAccountBar();
@@ -478,8 +450,8 @@ function renderHostView(code, group, { justCreated = false } = {}) {
   function draw(joined) {
     const n = joined.size;
     $("#progress").innerHTML = bi(
-      n === total ? `All ${total} people are ready!` : `${n} of ${total} people have set their PIN`,
-      n === total ? `${total}명 모두 준비되었어요!` : `${total}명 중 ${n}명이 PIN을 설정했습니다`
+      n === total ? `All ${total} joined!` : `${n} of ${total} joined`,
+      n === total ? `${total}명 모두 참여했어요!` : `${total}명 중 ${n}명 참여`
     );
     $("#bar").style.width = `${total ? (n / total) * 100 : 0}%`;
     $("#status").innerHTML = group.names
@@ -487,7 +459,7 @@ function renderHostView(code, group, { justCreated = false } = {}) {
         const ok = joined.has(String(i));
         return `<li class="status ${ok ? "is-ready" : ""}">
           <span class="status-name">${esc(name)}</span>
-          <span class="status-badge">${ok ? bi("✓ PIN set", "✓ PIN 설정됨") : bi("Waiting", "대기 중")}</span>
+          <span class="status-badge">${ok ? bi("✓ Joined", "✓ 참여") : bi("Waiting", "대기 중")}</span>
         </li>`;
       })
       .join("");
@@ -549,10 +521,6 @@ function renderHostSignIn(code) {
   render(`
     <section class="card stack">
       <h2>${bi("Host sign-in", "호스트 로그인")}</h2>
-      ${instr(
-        "Sign in with the Google account you used to create this group.",
-        "이 그룹을 만들 때 사용한 Google 계정으로 로그인하세요."
-      )}
       <button id="sign-in">${bi("Sign in with Google", "Google로 로그인")}</button>
       <div id="msg"></div>
     </section>
@@ -565,8 +533,8 @@ function renderPicker(code, group) {
   render(`
     <section class="card">
       ${group.title ? `<p class="label">${esc(group.title)}</p>` : ""}
-      <h2>${bi("Select your name", "본인의 이름을 선택하세요")}</h2>
-      ${instr("Tap your own name to continue.", "계속하려면 본인의 이름을 누르세요.")}
+      <h2>${bi("Who are you?", "누구세요?")}</h2>
+      ${instr("Tap your name.", "이름을 눌러주세요.")}
       <div class="name-grid">
         ${group.names.map((n, i) => `<button class="btn-secondary" data-i="${i}">${esc(n)}</button>`).join("")}
       </div>
@@ -579,6 +547,7 @@ function renderPicker(code, group) {
   wireHostButton(code);
 }
 
+// Full-screen number pad. New PIN: enter twice. Existing PIN: checked as soon as 4 digits are in.
 async function renderPin(code, group, i, notice) {
   renderLoading();
   let hasPin;
@@ -591,57 +560,66 @@ async function renderPin(code, group, i, notice) {
   }
 
   const name = group.names[i];
-  const pinField = (id, label) => `
-    <div>
-      <label class="field-label" for="${id}">${label}</label>
-      <input id="${id}" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*"
-        maxlength="4" autocomplete="off" placeholder="••••">
-    </div>`;
+  const TITLES = {
+    enter: ["Enter your PIN", "비밀번호를 입력하세요"],
+    create: ["Make a 4-digit PIN", "비밀번호 4자리를 만드세요"],
+    confirm: ["Enter it again", "한 번 더 입력하세요"],
+  };
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
 
   render(`
-    <section class="card">
-      <h2>${bi(`Hi, ${name}!`, `안녕하세요, ${name}님!`)}</h2>
-      ${
-        hasPin
-          ? instr("Enter your 4-digit PIN.", "4자리 PIN을 입력하세요.")
-          : instr(
-              "Create a 4-digit PIN. You'll need it to get back in. Don't share it, and pick one you'll remember because it can't be reset.",
-              "4자리 PIN을 만드세요. 다시 들어올 때 필요합니다. 다른 사람과 공유하지 말고, 재설정할 수 없으니 기억하기 쉬운 번호로 정하세요."
-            )
-      }
-      <form id="pin-form" class="stack" novalidate>
-        ${hasPin ? pinField("pin1", bi("PIN", "PIN")) : pinField("pin1", bi("New PIN", "새 PIN")) + pinField("pin2", bi("Confirm PIN", "PIN 확인"))}
-        <button type="submit" id="pin-submit">${hasPin ? bi("Continue", "계속") : bi("Set PIN and continue", "PIN 설정 후 계속")}</button>
-      </form>
-      <div id="pin-msg"></div>
-    </section>
-    <button class="btn-ghost" id="back">${bi("Not you? Go back", "본인이 아닌가요? 돌아가기")}</button>`);
+    <section class="card pin-screen">
+      <p class="pin-name">${esc(name)}</p>
+      <h2 id="pin-title"></h2>
+      <div class="pin-dots" id="dots" aria-hidden="true">${"<span></span>".repeat(4)}</div>
+      <div class="pin-msg" id="pin-msg" role="status"></div>
+      <div class="keypad">
+        ${keys
+          .map((k) =>
+            k === ""
+              ? `<span></span>`
+              : k === "del"
+                ? `<button type="button" class="key key-del" data-key="del" ${al("Delete", "지우기")}>
+                    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+                  </button>`
+                : `<button type="button" class="key" data-key="${k}">${k}</button>`
+          )
+          .join("")}
+      </div>
+      <button class="btn-ghost" id="back">${bi("Not you?", "본인이 아닌가요?")}</button>
+    </section>`);
 
+  let step = hasPin ? "enter" : "create";
+  let digits = "";
+  let firstPin = "";
+  let busy = false;
+  const dots = $("#dots");
   const msgEl = $("#pin-msg");
-  if (notice) showMsg(msgEl, "info", notice);
 
-  app.querySelectorAll(".pin-input").forEach((el) =>
-    el.addEventListener("input", () => { el.value = el.value.replace(/\D/g, "").slice(0, 4); })
-  );
-  $("#pin1").focus();
-  $("#back").addEventListener("click", () => renderPicker(code, group));
+  const say = (pair) => { msgEl.innerHTML = pair ? bi(pair[0], pair[1]) : ""; };
+  function setStep(s) {
+    step = s;
+    $("#pin-title").innerHTML = bi(...TITLES[s]);
+  }
+  function drawDots() {
+    [...dots.children].forEach((d, k) => d.classList.toggle("on", k < digits.length));
+  }
+  function shake() {
+    dots.classList.remove("shake");
+    void dots.offsetWidth; // restart the animation
+    dots.classList.add("shake");
+    if (navigator.vibrate) navigator.vibrate(120);
+  }
 
-  $("#pin-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const pin = $("#pin1").value;
-    if (!/^\d{4}$/.test(pin)) {
-      return showMsg(msgEl, "error", ["Your PIN must be exactly 4 digits.", "PIN은 숫자 4자리여야 합니다."]);
-    }
-    if (!hasPin && $("#pin2").value !== pin) {
-      return showMsg(msgEl, "error", ["The PINs don't match.", "PIN이 일치하지 않습니다."]);
-    }
+  setStep(step);
+  drawDots();
+  if (notice) say(notice);
+  else if (!hasPin) say(["Remember it for next time.", "다음에도 필요하니 꼭 기억하세요."]);
 
-    const btn = $("#pin-submit");
-    btn.disabled = true;
-    msgEl.innerHTML = "";
+  async function submit(pin) {
+    busy = true;
     const pinHash = await hashPin(code, i, pin);
     const batch = writeBatch(db);
-
     if (hasPin) {
       batch.set(proofRef(code, i), { pinHash, at: serverTimestamp() });
       batch.update(memberRef(code, i), { updatedAt: serverTimestamp() });
@@ -649,30 +627,74 @@ async function renderPin(code, group, i, notice) {
       batch.set(pinRef(code, i), { pinHash });
       batch.set(memberRef(code, i), { wishlist: "", updatedAt: serverTimestamp() });
     }
-
     try {
       await batch.commit();
       const session = { memberId: i, pinHash };
       saveSession(code, session);
       renderDashboard(code, group, session);
     } catch (err) {
-      btn.disabled = false;
+      busy = false;
+      digits = "";
+      drawDots();
       if (err && err.code === "permission-denied") {
         if (hasPin) {
-          $("#pin1").value = "";
-          $("#pin1").focus();
-          return showMsg(msgEl, "error", ["Incorrect PIN. Please try again.", "PIN이 올바르지 않습니다. 다시 시도해 주세요."]);
+          shake();
+          return say(["Wrong PIN. Try again.", "비밀번호가 틀렸어요. 다시 해주세요."]);
         }
         // Someone set a PIN for this name a moment ago.
-        return renderPin(code, group, i, [
-          "A PIN was already set for this name. Please enter it.",
-          "이 이름에는 이미 PIN이 설정되어 있습니다. PIN을 입력해 주세요.",
-        ]);
+        return renderPin(code, group, i, ["This name already has a PIN.", "이미 비밀번호가 있는 이름이에요."]);
       }
       console.error(err);
-      showMsg(msgEl, "error", MSG.generic);
+      say(MSG.generic);
     }
-  });
+  }
+
+  function press(k) {
+    if (busy) return;
+    if (k === "del") {
+      digits = digits.slice(0, -1);
+      return drawDots();
+    }
+    if (digits.length >= 4) return;
+    digits += k;
+    drawDots();
+    if (digits.length < 4) {
+      if (digits.length === 1 && step !== "confirm") say(null);
+      return;
+    }
+    // Four digits entered: let the last dot fill in, then move on.
+    const pin = digits;
+    busy = true;
+    setTimeout(() => {
+      busy = false;
+      if (step === "create") {
+        firstPin = pin;
+        digits = "";
+        drawDots();
+        setStep("confirm");
+        say(null);
+      } else if (step === "confirm") {
+        if (pin === firstPin) return submit(pin);
+        digits = "";
+        firstPin = "";
+        drawDots();
+        shake();
+        setStep("create");
+        say(["Didn't match. Start again.", "일치하지 않아요. 처음부터 다시 해주세요."]);
+      } else {
+        submit(pin);
+      }
+    }, 180);
+  }
+
+  app.querySelectorAll("[data-key]").forEach((b) => b.addEventListener("click", () => press(b.dataset.key)));
+  const onKey = (e) => {
+    if (/^[0-9]$/.test(e.key)) press(e.key);
+    else if (e.key === "Backspace") press("del");
+  };
+  document.addEventListener("keydown", onKey);
+  cleanups.push(() => document.removeEventListener("keydown", onKey));
+  $("#back").addEventListener("click", () => renderPicker(code, group));
 }
 
 function renderDashboard(code, group, session) {
@@ -688,22 +710,18 @@ function renderDashboard(code, group, session) {
     </div>
 
     <section class="card santa-card">
-      <p class="label">${bi("You are the Secret Santa for", "당신이 선물할 사람은")}</p>
+      <p class="label">${bi("Your gift is for", "선물할 사람")}</p>
       <div class="giftee-name">${esc(gifteeName)}</div>
-      <p class="label">${bi(`${gifteeName}'s wishlist`, `${gifteeName}님의 위시리스트`)}</p>
+      <p class="label">${bi(`${gifteeName} wants`, `${gifteeName}님이 원하는 것`)}</p>
       <div id="their-list" class="wishlist-view"><span class="empty">…</span></div>
     </section>
 
     <section class="card stack">
-      <h2>${bi("My wishlist", "나의 위시리스트")}</h2>
-      ${instr(
-        "Write what you'd like to receive. Your Secret Santa will see this.",
-        "받고 싶은 선물을 적어주세요. 당신의 시크릿 산타가 이 내용을 보게 됩니다."
-      )}
+      <h2>${bi("What do you want?", "받고 싶은 선물")}</h2>
       <textarea id="my-list" rows="7" maxlength="${MAX_WISHLIST}"
-        ${ph("e.g. cozy socks, a good book, coffee beans…", "예: 포근한 양말, 좋은 책, 원두…")}
-        ${al("My wishlist", "나의 위시리스트")}></textarea>
-      <button id="save">${bi("Save wishlist", "위시리스트 저장")}</button>
+        ${ph("e.g. warm socks, a book…", "예: 따뜻한 양말, 책…")}
+        ${al("What do you want?", "받고 싶은 선물")}></textarea>
+      <button id="save">${bi("Save", "저장")}</button>
       <div id="save-msg"></div>
     </section>
     ${hostButton(group)}`);
@@ -717,7 +735,7 @@ function renderDashboard(code, group, session) {
       if (!el) return;
       const text = snap.exists() ? String(snap.data().wishlist || "").trim() : "";
       if (text) el.textContent = text;
-      else el.innerHTML = `<span class="empty">${bi("No wishlist yet. Check back later!", "아직 위시리스트가 없어요. 나중에 다시 확인해 주세요!")}</span>`;
+      else el.innerHTML = `<span class="empty">${bi("Nothing yet.", "아직 없어요.")}</span>`;
     },
     (err) => console.error(err)
   );
@@ -748,7 +766,7 @@ function renderDashboard(code, group, session) {
     } catch (err) {
       if (err && err.code === "permission-denied") {
         clearSession(code);
-        return renderPin(code, group, me, ["Please enter your PIN again.", "PIN을 다시 입력해 주세요."]);
+        return renderPin(code, group, me, ["Please enter your PIN again.", "비밀번호를 다시 입력하세요."]);
       }
       console.error(err);
       showMsg(msgEl, "error", MSG.generic);

@@ -11,7 +11,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 | `app.js` | All logic: language toggle, Google sign-in, host home/groups list, create, host view, participant picker/PIN/wishlist. Imports Firebase SDK 10.12.2 (app, auth, firestore) from `https://www.gstatic.com/firebasejs/...` |
 | `firebase-config.js` | Web app config. `configured` in `app.js` treats an `apiKey` starting with `YOUR_` as "not configured" |
 | `firestore.rules` | Security rules; source of truth (deploy from here) |
-| `style.css` | Grey-blue, mobile-first theme. `main` has `position: relative; z-index: 1` so the first card overlaps the header (the header is `position: relative` for the toggle). |
+| `style.css` | Grey-blue, mobile-first theme. The header is one flex row (brand left, `#lang` toggle right). `main` has `position: relative; z-index: 1` so the first card overlaps the header. |
 | `README.md` | User-facing setup/deploy docs |
 
 ## Data model (see header of `firestore.rules`)
@@ -23,6 +23,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 ## Routes & UX
 - `/` — signed out: a single "Sign in with Google" card. Signed in: Create group plus **Your groups** list (query `where ownerUid == uid`, sorted by `createdAt` on the client so no composite index is needed). There is **no join-by-code form**; this is by design.
 - `?g=CODE` — participant: pick name → PIN → dashboard (giftee + wishlist). The owner also sees a "Host view" button.
+- The PIN screen is a full-card number pad (`renderPin`): it moves on as soon as the 4th digit is entered. A new PIN is entered twice; a wrong PIN shakes the dots. It also accepts keyboard digits and Backspace. The keys are sized with `dvh` so the screen fits on a phone without scrolling.
 - `?g=CODE&view=host` — host view (share/copy link, PIN progress, "Open as participant"). Not the owner → sign-in prompt, or falls back to the participant view.
 - Language: `<html lang>` is `en` or `ko`. Every string renders both `<span class="en">` and `<span class="ko">`, and CSS hides the other one, so the toggle (`#lang` in index.html) needs no re-render. The toggle label shows the **currently active** language (English / 한국어), not the one it switches to. `bi(en, ko)` builds the spans, `L(en, ko)` returns a plain string, and `ph()`/`al()` build translatable placeholder and aria-label attributes. The choice is stored in localStorage `secret-santa:lang`; the default comes from `navigator.language`.
 
@@ -49,6 +50,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 - `gh` CLI is not installed.
 
 ## Conventions
+- **Audience is the user's parents** (Korean speakers, not tech-savvy). Keep UI text as short as possible: titles plus at most one short line, no paragraphs. Say "비밀번호" rather than "PIN" in Korean. No footer; the layout should fit a phone screen.
 - Keep it build-free: no bundlers or npm deps; Firebase loads from the CDN.
 - All UI strings come in English and Korean pairs. Use `bi`/`instr` for markup, `L` for plain strings (prompt, share text), and `ph`/`al` for attributes. Never hardcode text in one language only.
 - The user is the only one using this: commit and push straight to `main` after changes, with no local testing step needed (the user said so on 2026-11-26). Still deploy rules/auth with the Firebase MCP whenever `firestore.rules` or `firebase.json` change.
