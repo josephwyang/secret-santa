@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// Data layout
+//   groups/{code}                 { names: [string], giftees: [int], hostKeyHash, createdAt }
+//   groups/{code}/members/{i}     { wishlist, updatedAt }   (created when person i sets a PIN)
+//   groups/{code}/pins/{i}        { pinHash }               (never readable)
+//   groups/{code}/proofs/{i}      { pinHash, at }           (never readable; written with each change
+//                                                            to prove the PIN without exposing it)
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /groups/{code} {
+      allow read: if true;
+      allow create: if code.matches('^[A-HJ-NP-Z]{6}$')
+        && request.resource.data.keys().hasOnly(['names', 'giftees', 'hostKeyHash', 'createdAt'])
+        && request.resource.data.names is list
+        && request.resource.data.names.size() >= 3
+        && request.resource.data.names.size() <= 50
+        && request.resource.data.giftees is list
+        && request.resource.data.giftees.size() == request.resource.data.names.size();
+      allow update, delete: if false;
+
+      match /members/{memberId} {
+        allow read: if true;
+
+        // Created together with the person's PIN, the first time they pick their name.
+        allow create: if memberId.matches('^[0-9]{1,2}$')
+          && exists(/databases/$(database)/documents/groups/$(code))
+          && int(memberId) < get(/databases/$(database)/documents/groups/$(code)).data.names.size()
+          && !exists(/databases/$(database)/documents/groups/$(code)/pins/$(memberId))
+          && existsAfter(/databases/$(database)/documents/groups/$(code)/pins/$(memberId))
+          && request.resource.data.keys().hasOnly(['wishlist', 'updatedAt'])
+          && request.resource.data.wishlist is string
+          && request.resource.data.wishlist.size() <= 5000;
+
+        // Every change must come with a fresh proof that matches the stored PIN hash.
+        allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['wishlist', 'updatedAt'])
+          && request.resource.data.wishlist is string
+          && request.resource.data.wishlist.size() <= 5000
+          && getAfter(/databases/$(database)/documents/groups/$(code)/proofs/$(memberId)).data.at == request.time
+          && getAfter(/databases/$(database)/documents/groups/$(code)/proofs/$(memberId)).data.pinHash
+             == get(/databases/$(database)/documents/groups/$(code)/pins/$(memberId)).data.pinHash;
+
+        allow delete: if false;
+      }
+
+      match /pins/{memberId} {
+        allow read: if false;
+        allow create: if request.resource.data.keys().hasOnly(['pinHash'])
+          && request.resource.data.pinHash is string
+          && !exists(/databases/$(database)/documents/groups/$(code)/members/$(memberId))
+          && existsAfter(/databases/$(database)/documents/groups/$(code)/members/$(memberId));
+        allow update, delete: if false;
+      }
+
+      match /proofs/{memberId} {
+        allow read: if false;
+        allow create, update: if request.resource.data.keys().hasOnly(['pinHash', 'at'])
+          && request.resource.data.pinHash is string
+          && request.resource.data.at == request.time;
+        allow delete: if false;
+      }
+    }
+  }
+}
