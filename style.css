@@ -556,13 +556,14 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 }
 .gift-btn:hover { background: rgba(75, 107, 140, 0.08); }
 .gift.is-mine .gift-btn { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+.gift.is-mine .gift-text { color: var(--ok); }
 .gift.is-taken .gift-text { color: var(--muted); text-decoration: line-through; font-weight: 500; }
 .gift.is-taken .gift-btn,
 .gift.is-taken .gift-btn:disabled {
   opacity: 1;
-  background: transparent;
-  color: var(--muted);
-  border-color: var(--line);
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: rgba(169, 80, 76, 0.45);
   cursor: default;
 }
 
@@ -635,4 +636,4 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .person .gift { border-bottom: 0; padding: 0.5rem 0; }
 .person .gift-btn { background: var(--surface); }
 .person .gift.is-mine .gift-btn { background: var(--ok-bg); }
-.person .gift.is-taken .gift-btn { background: transparent; }
+.person .gift.is-taken .gift-btn { background: var(--danger-bg); }
