@@ -42,7 +42,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 - [x] Authorized domain `josephwyang.github.io` added by the user (2026-11-26)
 - [ ] Tested end to end locally (the host's Google sign-in needs a real browser)
 - [x] Committed and pushed to `main` (d41edbc, 2026-11-26)
-- [ ] GitHub Pages enabled (the user does this in repo Settings → Pages: branch `main`, `/ (root)`). The site will be at https://josephwyang.github.io/secret-santa/
+- [x] GitHub Pages is live at https://josephwyang.github.io/secret-santa/
 
 ## Git / SSH notes
 - `~/.ssh/id_ed25519` has a passphrase and is saved in the macOS Keychain (`ssh-add --apple-use-keychain`). If a push fails with `Permission denied (publickey)`, the agent has lost the key: the user must rerun that command in a real Terminal, because the `!` prompt can't take a passphrase.
