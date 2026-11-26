@@ -843,7 +843,7 @@ function renderDashboard(code, group, session) {
     if (!statusEl) return;
     statusEl.className = `save-status ${state || ""}`;
     statusEl.innerHTML =
-      state === "saving" ? `<span class="mini-spinner" aria-hidden="true"></span>${bi("Saving…", "저장 중…")}`
+      state === "saving" ? `<span class="mini-spinner" aria-hidden="true"></span>${bi("Saving", "저장 중")}`
       : state === "saved" ? `<span aria-hidden="true">✓</span>${bi("Saved", "저장됨")}`
       : state === "error" ? bi("Couldn't save. Will retry.", "저장하지 못했어요. 다시 시도할게요.")
       : "";
