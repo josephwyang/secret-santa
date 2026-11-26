@@ -45,17 +45,28 @@ body {
   gap: 0.8rem;
   background: linear-gradient(160deg, var(--deep) 0%, var(--deep-2) 100%);
   color: #eef2f6;
-  padding: calc(0.9rem + env(safe-area-inset-top)) 1.1rem 3.1rem;
+  padding: calc(0.9rem + env(safe-area-inset-top)) max(1.1rem, calc((100% - 640px) / 2 + 1rem)) 3.1rem;
 }
 
 .brand {
   margin: 0;
-  font-size: clamp(1.5rem, 6.5vw, 2.4rem);
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: clamp(1.2rem, 5vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   line-height: 1.1;
   cursor: pointer;
-  display: inline-block;
+  white-space: nowrap;
+}
+.brand-icon {
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0.35rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
 }
 .brand:focus-visible { outline: 3px solid #9fb3c8; outline-offset: 6px; border-radius: 8px; }
 
@@ -388,7 +399,6 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
   box-shadow: none;
 }
 .icon-btn:hover { background: rgba(255, 255, 255, 0.18); }
-.icon-btn.is-signed-in { background: rgba(255, 255, 255, 0.92); color: var(--deep); border-color: transparent; }
 
 .account-menu {
   position: absolute;
@@ -469,26 +479,25 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   justify-items: center;
-  gap: min(1.4dvh, 0.7rem) 1.2rem;
+  gap: min(1.4dvh, 0.7rem) 2rem;
   margin-bottom: 0.2rem;
 }
 .key {
-  /* Sized by screen height so the whole pad fits on a phone without scrolling. */
-  --key: clamp(2.6rem, 9dvh, 4.3rem);
+  /* Plain numbers like a phone lock screen; sized by screen height so the pad fits without scrolling. */
+  --key: clamp(2.8rem, 9.5dvh, 4.5rem);
   width: var(--key);
   height: var(--key);
   min-height: 0;
   padding: 0;
   border-radius: 50%;
-  font-size: calc(var(--key) * 0.42);
+  font-size: calc(var(--key) * 0.46);
   font-weight: 600;
   color: var(--ink);
-  background: var(--surface-2);
-  border: 1.5px solid var(--line);
+  background: transparent;
   box-shadow: none;
   font-variant-numeric: tabular-nums;
+  transition: background 0.12s ease, transform 0.06s ease;
 }
-.key:hover { background: #e2e8ee; }
-.key:active { background: var(--line); transform: scale(0.94); }
-.key-del { background: transparent; border-color: transparent; color: var(--muted); }
-.key-del:hover { background: rgba(75, 107, 140, 0.08); }
+.key:hover { background: rgba(75, 107, 140, 0.08); }
+.key:active { background: rgba(75, 107, 140, 0.18); transform: scale(0.94); }
+.key-del { color: var(--muted); }

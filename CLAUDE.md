@@ -52,6 +52,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 
 ## Conventions
 - **Audience is the user's parents** (Korean speakers, not tech-savvy). Keep UI text as short as possible: titles plus at most one short line, no paragraphs. Say "비밀번호" rather than "PIN" in Korean. No footer; the layout should fit a phone screen.
+- **Cache busting:** GitHub Pages and Safari cache assets, and the user once saw new HTML with old CSS/JS. `index.html` loads `style.css?v=N` and `app.js?v=N`; **bump N on every push** that changes CSS or JS.
 - Keep it build-free: no bundlers or npm deps; Firebase loads from the CDN.
 - All UI strings come in English and Korean pairs. Use `bi`/`instr` for markup, `L` for plain strings (prompt, share text), and `ph`/`al` for attributes. Never hardcode text in one language only.
 - The user is the only one using this: commit and push straight to `main` after changes, with no local testing step needed (the user said so on 2026-11-26). Still deploy rules/auth with the Firebase MCP whenever `firestore.rules` or `firebase.json` change.

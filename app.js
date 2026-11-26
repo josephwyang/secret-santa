@@ -243,7 +243,6 @@ function setMenuOpen(open) {
 }
 
 function drawAccountMenu() {
-  accountBtn.classList.toggle("is-signed-in", !!user);
   accountMenu.innerHTML = user
     ? `<div class="menu-who">${esc(user.displayName || user.email || "")}</div>
        <button type="button" class="menu-item" role="menuitem" data-act="groups">${bi("My groups", "내 그룹")}</button>
