@@ -586,8 +586,8 @@ async function renderPin(code, group, i, notice) {
   const name = group.names[i];
   const TITLES = {
     enter: ["Enter your PIN", "비밀번호를 입력하세요"],
-    create: ["Make a 4-digit PIN", "비밀번호 4자리를 만드세요"],
-    confirm: ["Enter it again", "한 번 더 입력하세요"],
+    create: ["Create your PIN", "비밀번호를 만드세요"],
+    confirm: ["Confirm your PIN", "비밀번호를 한 번 더 입력하세요"],
   };
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
 
