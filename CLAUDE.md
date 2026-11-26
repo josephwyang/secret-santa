@@ -11,7 +11,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 | `app.js` | All logic: language toggle, Google sign-in, host home/groups list, create, host view, participant picker/PIN/wishlist. Imports Firebase SDK 10.12.2 (app, auth, firestore) from `https://www.gstatic.com/firebasejs/...` |
 | `firebase-config.js` | Web app config. `configured` in `app.js` treats an `apiKey` starting with `YOUR_` as "not configured" |
 | `firestore.rules` | Security rules; source of truth (deploy from here) |
-| `style.css` | Grey-blue, mobile-first theme. The header is one flex row: brand on the left, `.header-actions` on the right (`#account` person icon with the `#account-menu` dropdown, then the `#lang` toggle). `main` has `position: relative; z-index: 1` so the first card overlaps the header. |
+| `style.css` | Grey-blue, mobile-first theme. The header is one flex row: brand on the left, `.header-actions` on the right (`#account` person icon with the `#account-menu` dropdown, then the `#lang` toggle). The header is a slim bar, and cards start below it with no overlap (the user asked for that). The body uses `min-height: 100dvh`, so there's no extra scroll space on phones. |
 | `README.md` | User-facing setup/deploy docs |
 
 ## Data model (see header of `firestore.rules`)

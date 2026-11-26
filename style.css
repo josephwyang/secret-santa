@@ -21,12 +21,12 @@
 
 * { box-sizing: border-box; }
 
-html { font-size: 19px; }
+html { font-size: 19px; background: var(--bg-2); }
 @media (min-width: 720px) { html { font-size: 20px; } }
 
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 100dvh;
   font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
     "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
   color: var(--ink);
@@ -45,7 +45,7 @@ body {
   gap: 0.8rem;
   background: linear-gradient(160deg, var(--deep) 0%, var(--deep-2) 100%);
   color: #eef2f6;
-  padding: calc(0.9rem + env(safe-area-inset-top)) max(1.1rem, calc((100% - 640px) / 2 + 1rem)) 3.1rem;
+  padding: calc(0.7rem + env(safe-area-inset-top)) max(1rem, calc((100% - 640px) / 2 + 1rem)) 0.7rem;
 }
 
 .brand {
@@ -74,8 +74,8 @@ main {
   position: relative;
   z-index: 1;
   max-width: 640px;
-  margin: -2.3rem auto 0;
-  padding: 0 1rem calc(1.5rem + env(safe-area-inset-bottom));
+  margin: 1rem auto 0;
+  padding: 0 1rem calc(1rem + env(safe-area-inset-bottom));
 }
 
 .noscript { text-align: center; padding: 2rem; }
