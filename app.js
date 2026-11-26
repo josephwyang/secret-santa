@@ -268,13 +268,6 @@ function renderHome(error) {
         )}
         <button id="sign-in">${bi("Sign in with Google", "Google로 로그인")}</button>
         <div id="home-msg"></div>
-      </section>
-
-      <section class="card">
-        ${instr(
-          "Joining a group? Open the link your host sent you.",
-          "그룹에 참여하시나요? 호스트가 보낸 링크를 열어주세요."
-        )}
       </section>`);
     $("#sign-in").addEventListener("click", (e) => signIn(e.currentTarget, $("#home-msg")));
     if (error) showMsg($("#home-msg"), "error", error);

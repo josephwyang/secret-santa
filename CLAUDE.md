@@ -11,7 +11,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 | `app.js` | All logic: language toggle, Google sign-in, host home/groups list, create, host view, participant picker/PIN/wishlist. Imports Firebase SDK 10.12.2 (app, auth, firestore) from `https://www.gstatic.com/firebasejs/...` |
 | `firebase-config.js` | Web app config. `configured` in `app.js` treats an `apiKey` starting with `YOUR_` as "not configured" |
 | `firestore.rules` | Security rules; source of truth (deploy from here) |
-| `style.css` | Grey-blue, mobile-first theme |
+| `style.css` | Grey-blue, mobile-first theme. `main` has `position: relative; z-index: 1` so the first card overlaps the header (the header is `position: relative` for the toggle). |
 | `README.md` | User-facing setup/deploy docs |
 
 ## Data model (see header of `firestore.rules`)
@@ -21,10 +21,10 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 - `groups/{code}/proofs/{i}` — `{ pinHash, at }`, never readable; written alongside each wishlist update
 
 ## Routes & UX
-- `/` — signed out: "Sign in with Google" (hosts) and a note that participants should open their host's link. Signed in: Create group plus **Your groups** list (query `where ownerUid == uid`, sorted by `createdAt` on the client so no composite index is needed). There is **no join-by-code form**; this is by design.
+- `/` — signed out: a single "Sign in with Google" card. Signed in: Create group plus **Your groups** list (query `where ownerUid == uid`, sorted by `createdAt` on the client so no composite index is needed). There is **no join-by-code form**; this is by design.
 - `?g=CODE` — participant: pick name → PIN → dashboard (giftee + wishlist). The owner also sees a "Host view" button.
 - `?g=CODE&view=host` — host view (share/copy link, PIN progress, "Open as participant"). Not the owner → sign-in prompt, or falls back to the participant view.
-- Language: `<html lang>` is `en` or `ko`. Every string renders both `<span class="en">` and `<span class="ko">`, and CSS hides the other one, so the toggle (`#lang` in index.html) needs no re-render. `bi(en, ko)` builds the spans, `L(en, ko)` returns a plain string, and `ph()`/`al()` build translatable placeholder and aria-label attributes. The choice is stored in localStorage `secret-santa:lang`; the default comes from `navigator.language`.
+- Language: `<html lang>` is `en` or `ko`. Every string renders both `<span class="en">` and `<span class="ko">`, and CSS hides the other one, so the toggle (`#lang` in index.html) needs no re-render. The toggle label shows the **currently active** language (English / 한국어), not the one it switches to. `bi(en, ko)` builds the spans, `L(en, ko)` returns a plain string, and `ph()`/`al()` build translatable placeholder and aria-label attributes. The choice is stored in localStorage `secret-santa:lang`; the default comes from `navigator.language`.
 
 ## Commands
 - Run locally: `python3 -m http.server 8000`, then open http://localhost:8000 (modules don't load over `file://`)
