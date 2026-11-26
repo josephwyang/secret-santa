@@ -2,13 +2,13 @@
 
 A Secret Santa web app for GitHub Pages, with English and Korean instructions.
 
-- The host creates a group by entering everyone's names. The app assigns everyone at random (nobody gets themselves) and gives the group a 6-letter code.
-- People join with the code on the home page or a link like `https://<you>.github.io/secret-santa/?g=ABCDEF`.
-- Each person picks their name and sets a 4-digit PIN. After that they can see who they're buying for, read that person's wishlist, and edit their own.
-- The host can't see the assignments in the app.
-- **Host view:** the host can see who has set a PIN so far, which shows who has joined, without seeing who drew whom. The device that created the group opens it automatically. On another device, use the private host link (`...?g=ABCDEF#host=...`) shown after the group is created.
+- The host signs in with Google and creates a group by entering everyone's names. The app assigns everyone at random (nobody gets themselves) and gives the group a 6-letter code.
+- The host shares the group link (`https://<you>.github.io/secret-santa/?g=ABCDEF`). There's no "join with a code" form: if someone loses the link, the host opens the group from **Your groups** and sends it again.
+- Each person opens the link, picks their name, and sets a 4-digit PIN. After that they can see who they're buying for, read that person's wishlist, and edit their own.
+- **Host view:** groups are saved to the host's Google account. The host can see who has set a PIN so far, which shows who has joined, without seeing who drew whom. Hosts who are also playing use **Open as participant**.
+- **Language:** the globe button in the top corner switches between English and Korean. The choice is remembered on that device.
 
-The pages are plain HTML, CSS and JavaScript with no build step. Groups and wishlists are stored in Firebase Firestore, on the free plan.
+The pages are plain HTML, CSS and JavaScript with no build step. Groups and wishlists are stored in Firebase Firestore, and hosts sign in with Firebase Authentication (Google). Both work on the free plan.
 
 ## 1. Set up Firebase (one time, about 5 minutes)
 
@@ -16,9 +16,10 @@ The pages are plain HTML, CSS and JavaScript with no build step. Groups and wish
 2. On the project page, click the **Web** icon (`</>`) to add a web app. Give it any nickname and skip Hosting.
 3. Firebase shows a `firebaseConfig` object. Copy its values into **`firebase-config.js`**.
 4. In the left menu, open **Build → Firestore Database → Create database**. Pick a location near you and start in **production mode**.
-5. In Firestore, open the **Rules** tab. Replace everything there with the contents of **`firestore.rules`** and click **Publish**.
+5. Open **Build → Authentication → Get started → Sign-in method**, enable **Google**, and save. Then under **Settings → Authorized domains**, add `<your-username>.github.io`.
+6. In Firestore, open the **Rules** tab. Replace everything there with the contents of **`firestore.rules`** and click **Publish**.
 
-If you have the Firebase CLI, you can skip step 5. Instead run `firebase deploy --only firestore:rules`, which uses `firebase.json` and `.firebaserc` from this repo. Change the project id in `.firebaserc` if you made your own project.
+If you have the Firebase CLI, you can skip step 6. Instead run `firebase deploy --only firestore:rules`, which uses `firebase.json` and `.firebaserc` from this repo. Change the project id in `.firebaserc` if you made your own project.
 
 The values in `firebase-config.js` are meant to be public. What people can read and write is controlled by the rules.
 
@@ -43,6 +44,7 @@ Then open <http://localhost:8000>.
 ## How privacy works
 
 - PINs are never stored. The app stores a hash of each PIN in a part of the database that nobody can read. Every wishlist change has to come with proof of the right PIN, so nobody else can edit your list.
+- Only the host's Google account can list their groups. Anyone with a group's link or code can open it.
 - Assignments aren't shown to the host or anyone else in the app. The browser does download the whole group's data, though, so a technically curious person could dig the assignments out with developer tools. That's fine for a friendly gift exchange, but this isn't bank-grade secrecy.
 - Remembering who you are on a device uses the browser's local storage. "Not you?" signs that person out on that device.
 

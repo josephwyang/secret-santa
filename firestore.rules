@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // Data layout
-//   groups/{code}                 { names: [string], giftees: [int], hostKeyHash, createdAt }
+//   groups/{code}                 { title?, names: [string], giftees: [int], ownerUid, createdAt }
+//                                 (ownerUid = Firebase Auth uid of the host who created it)
 //   groups/{code}/members/{i}     { wishlist, updatedAt }   (created when person i sets a PIN)
 //   groups/{code}/pins/{i}        { pinHash }               (never readable)
 //   groups/{code}/proofs/{i}      { pinHash, at }           (never readable; written with each change
@@ -10,9 +11,15 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     match /groups/{code} {
-      allow read: if true;
-      allow create: if code.matches('^[A-HJ-NP-Z]{6}$')
-        && request.resource.data.keys().hasOnly(['names', 'giftees', 'hostKeyHash', 'createdAt'])
+      // Anyone with the code can open a group. Only the signed-in host can list their own groups.
+      allow get: if true;
+      allow list: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+      allow create: if request.auth != null
+        && code.matches('^[A-HJ-NP-Z]{6}$')
+        && request.resource.data.keys().hasOnly(['title', 'names', 'giftees', 'ownerUid', 'createdAt'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && (!('title' in request.resource.data)
+            || (request.resource.data.title is string && request.resource.data.title.size() <= 60))
         && request.resource.data.names is list
         && request.resource.data.names.size() >= 3
         && request.resource.data.names.size() <= 50

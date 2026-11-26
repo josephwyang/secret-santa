@@ -1,10 +1,20 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
   getFirestore,
   doc,
   collection,
+  query,
+  where,
   getDoc,
+  getDocs,
   setDoc,
   writeBatch,
   onSnapshot,
@@ -17,12 +27,16 @@ const CODE_RE = /^[A-HJ-NP-Z]{6}$/;
 const MIN_PEOPLE = 3;
 const MAX_PEOPLE = 50;
 const MAX_NAME = 40;
+const MAX_TITLE = 60;
 const MAX_WISHLIST = 5000;
 
 /* ---------- Firebase ---------- */
 const configured =
   firebaseConfig && typeof firebaseConfig.apiKey === "string" && !firebaseConfig.apiKey.startsWith("YOUR_");
-const db = configured ? getFirestore(initializeApp(firebaseConfig)) : null;
+const fbApp = configured ? initializeApp(firebaseConfig) : null;
+const db = configured ? getFirestore(fbApp) : null;
+const auth = configured ? getAuth(fbApp) : null;
+let user = null; // the signed-in host, if any
 
 const groupRef = (code) => doc(db, "groups", code);
 const memberRef = (code, i) => doc(db, "groups", code, "members", String(i));
@@ -36,14 +50,47 @@ const $ = (sel) => app.querySelector(sel);
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-// English text with its Korean translation underneath.
-const bi = (en, ko) => `${esc(en)}<span class="ko">${esc(ko)}</span>`;
-const instr = (en, ko) => `<p class="instr">${bi(en, ko)}</p>`;
+/* ---------- Language ---------- */
+// Every piece of text is rendered in both languages; CSS shows only the one matching <html lang>.
+// That way the toggle switches instantly without re-rendering or losing what people typed.
+const LANG_KEY = "secret-santa:lang";
+let lang = (() => {
+  try {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (saved === "en" || saved === "ko") return saved;
+  } catch { /* ignore */ }
+  return (navigator.language || "").toLowerCase().startsWith("ko") ? "ko" : "en";
+})();
 
+const L = (en, ko) => (lang === "ko" ? ko : en); // plain string for the current language
+const bi = (en, ko) => `<span class="en">${esc(en)}</span><span class="ko">${esc(ko)}</span>`;
+const instr = (en, ko) => `<p class="instr">${bi(en, ko)}</p>`;
+// Attributes that also need translating (placeholder, aria-label).
+const ph = (en, ko) => `placeholder="${esc(L(en, ko))}" data-ph-en="${esc(en)}" data-ph-ko="${esc(ko)}"`;
+const al = (en, ko) => `aria-label="${esc(L(en, ko))}" data-al-en="${esc(en)}" data-al-ko="${esc(ko)}"`;
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.title = L("Secret Santa", "시크릿 산타");
+  const k = lang === "ko" ? "Ko" : "En";
+  document.querySelectorAll("[data-ph-en]").forEach((el) => { el.placeholder = el.dataset[`ph${k}`]; });
+  document.querySelectorAll("[data-al-en]").forEach((el) => el.setAttribute("aria-label", el.dataset[`al${k}`]));
+}
+
+const langBtn = document.getElementById("lang");
+langBtn.addEventListener("click", () => {
+  lang = lang === "ko" ? "en" : "ko";
+  try { localStorage.setItem(LANG_KEY, lang); } catch { /* ignore */ }
+  applyLang();
+});
+applyLang();
+
+/* ---------- Messages & rendering ---------- */
 const MSG = {
   generic: ["Something went wrong. Please try again.", "문제가 발생했습니다. 다시 시도해 주세요."],
-  notFound: ["We couldn't find a group with that code.", "해당 코드의 그룹을 찾을 수 없습니다."],
-  badCode: ["Codes are 6 letters, like ABCDEF.", "코드는 ABCDEF처럼 6자리 영문입니다."],
+  notFound: ["We couldn't find that group. Ask your host to send the link again.", "그룹을 찾을 수 없습니다. 호스트에게 링크를 다시 보내달라고 요청하세요."],
+  badLink: ["That link doesn't look right. Ask your host to send it again.", "링크가 올바르지 않습니다. 호스트에게 다시 보내달라고 요청하세요."],
+  signInFailed: ["Sign-in didn't finish. Please try again.", "로그인이 완료되지 않았습니다. 다시 시도해 주세요."],
 };
 
 function showMsg(el, type, [en, ko]) {
@@ -59,7 +106,8 @@ function render(html) {
   app.innerHTML = html;
   window.scrollTo(0, 0);
 }
-const renderLoading = () => render(`<div class="loading"><span class="spinner" aria-label="Loading"></span></div>`);
+const renderLoading = () =>
+  render(`<div class="loading"><span class="spinner" ${al("Loading", "불러오는 중")}></span></div>`);
 
 function randInt(n) {
   const a = new Uint32Array(1);
@@ -91,14 +139,9 @@ async function sha256(text) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 const hashPin = (code, memberId, pin) => sha256(`secret-santa:${code}:${memberId}:${pin}`);
-const hashHostKey = (code, key) => sha256(`secret-santa-host:${code}:${key}`);
 
-function makeHostKey() {
-  const chars = "abcdefghijkmnpqrstuvwxyz23456789";
-  let s = "";
-  for (let i = 0; i < 20; i++) s += chars[randInt(chars.length)];
-  return s;
-}
+const isOwner = (group) => !!(user && group && group.ownerUid === user.uid);
+const groupLabel = (code, group) => (group && group.title ? group.title : code);
 
 /* ---------- Remember who you are on this device ---------- */
 const sessionKey = (code) => `secret-santa:${code}`;
@@ -112,16 +155,8 @@ function clearSession(code) {
   try { localStorage.removeItem(sessionKey(code)); } catch { /* ignore */ }
 }
 
-// The host key lets this device open the host view (who has set a PIN).
-const hostStorageKey = (code) => `secret-santa-host:${code}`;
-function loadHostKey(code) {
-  try { return localStorage.getItem(hostStorageKey(code)); } catch { return null; }
-}
-function saveHostKey(code, key) {
-  try { localStorage.setItem(hostStorageKey(code), key); } catch { /* private mode */ }
-}
-
 /* ---------- Links & routing ---------- */
+// Participant link: ?g=CODE. Host dashboard: ?g=CODE&view=host (needs the host's Google sign-in).
 function groupUrl(code) {
   const u = new URL(location.href);
   u.search = `?g=${code}`;
@@ -129,40 +164,86 @@ function groupUrl(code) {
   return u.toString();
 }
 
-const hostUrl = (code, key) => `${groupUrl(code)}#host=${key}`;
-
-function go(code) {
-  history.pushState(null, "", code ? `?g=${code}` : location.pathname);
+function go(code, view) {
+  const search = code ? `?g=${code}${view ? `&view=${view}` : ""}` : location.pathname;
+  history.pushState(null, "", search);
   route();
 }
 
-async function copyLink(code, btn, url = groupUrl(code)) {
+async function copyLink(code, btn) {
+  const url = groupUrl(code);
   try {
     await navigator.clipboard.writeText(url);
     const original = btn.innerHTML;
     btn.innerHTML = bi("Link copied!", "링크가 복사되었습니다!");
     setTimeout(() => { btn.innerHTML = original; }, 1800);
   } catch {
-    window.prompt("Copy this link / 이 링크를 복사하세요", url);
+    window.prompt(L("Copy this link", "이 링크를 복사하세요"), url);
   }
+}
+
+async function shareLink(code, group, btn) {
+  const url = groupUrl(code);
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: L("Secret Santa", "시크릿 산타"),
+        text: L(
+          `You're in the Secret Santa "${groupLabel(code, group)}"! Open this link, pick your name, and see who you're buying for.`,
+          `시크릿 산타 "${groupLabel(code, group)}"에 초대되었어요! 링크를 열고 이름을 선택하면 누구에게 선물할지 확인할 수 있어요.`
+        ),
+        url,
+      });
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") return; // they closed the share sheet
+    }
+  }
+  copyLink(code, btn);
 }
 
 async function route() {
   if (!configured) return renderSetup();
-  const code = (new URLSearchParams(location.search).get("g") || "").trim().toUpperCase();
+  const params = new URLSearchParams(location.search);
+  const code = (params.get("g") || "").trim().toUpperCase();
   if (!code) return renderHome();
   if (!CODE_RE.test(code)) {
     history.replaceState(null, "", location.pathname);
-    return renderHome(MSG.badCode);
+    return renderHome(MSG.badLink);
   }
-  return openGroup(code);
+  return openGroup(code, { hostView: params.get("view") === "host" });
 }
 
 window.addEventListener("popstate", route);
-window.addEventListener("hashchange", () => { if (location.hash.includes("host=")) route(); });
 const brand = document.getElementById("brand");
 brand.addEventListener("click", () => go(null));
 brand.addEventListener("keydown", (e) => { if (e.key === "Enter") go(null); });
+
+/* ---------- Account ---------- */
+async function signIn(btn, msgEl) {
+  if (btn) btn.disabled = true;
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+    // onAuthStateChanged re-renders the page.
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    if (err && (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request")) return;
+    console.error(err);
+    showMsg(msgEl, "error", MSG.signInFailed);
+  }
+}
+
+const accountBar = () =>
+  user
+    ? `<div class="account">
+        <span class="account-name">${esc(user.displayName || user.email || "")}</span>
+        <button class="btn-ghost" id="sign-out">${bi("Sign out", "로그아웃")}</button>
+      </div>`
+    : "";
+function wireAccountBar() {
+  const b = $("#sign-out");
+  if (b) b.addEventListener("click", () => signOut(auth));
+}
 
 /* ---------- Views ---------- */
 function renderSetup() {
@@ -177,53 +258,95 @@ function renderSetup() {
 }
 
 function renderHome(error) {
+  if (!user) {
+    render(`
+      <section class="card stack">
+        <h2>${bi("Create a Secret Santa", "시크릿 산타 만들기")}</h2>
+        ${instr(
+          "Sign in with Google to create a group. Your groups are saved to your account, so you can check progress and resend the link anytime.",
+          "Google로 로그인하여 그룹을 만드세요. 그룹이 계정에 저장되어 언제든지 진행 상황을 확인하고 링크를 다시 보낼 수 있습니다."
+        )}
+        <button id="sign-in">${bi("Sign in with Google", "Google로 로그인")}</button>
+        <div id="home-msg"></div>
+      </section>
+
+      <section class="card">
+        ${instr(
+          "Joining a group? Open the link your host sent you.",
+          "그룹에 참여하시나요? 호스트가 보낸 링크를 열어주세요."
+        )}
+      </section>`);
+    $("#sign-in").addEventListener("click", (e) => signIn(e.currentTarget, $("#home-msg")));
+    if (error) showMsg($("#home-msg"), "error", error);
+    return;
+  }
+
   render(`
+    ${accountBar()}
     <section class="card stack">
       <h2>${bi("Create a new group", "새 그룹 만들기")}</h2>
       ${instr("Start a Secret Santa for your friends, family, or team.", "친구, 가족, 팀과 함께 시크릿 산타를 시작하세요.")}
       <button id="create">${bi("Create group", "그룹 만들기")}</button>
+      <div id="home-msg"></div>
     </section>
 
     <section class="card">
-      <h2>${bi("Join a group", "그룹 참여하기")}</h2>
-      ${instr("Enter the 6-letter code from your host.", "호스트에게 받은 6자리 코드를 입력하세요.")}
-      <form id="join" class="stack" novalidate>
-        <input id="code" class="code-input" maxlength="6" placeholder="ABCDEF"
-          autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"
-          aria-label="Group code / 그룹 코드">
-        <button type="submit">${bi("Join", "참여하기")}</button>
-      </form>
-      <div id="join-msg"></div>
+      <h2>${bi("Your groups", "내 그룹")}</h2>
+      <ul class="group-list" id="groups"><li class="loading"><span class="spinner"></span></li></ul>
     </section>`);
-
+  wireAccountBar();
   $("#create").addEventListener("click", renderCreate);
+  if (error) showMsg($("#home-msg"), "error", error);
 
-  const input = $("#code");
-  input.addEventListener("input", () => {
-    input.value = input.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 6);
-  });
-  $("#join").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const code = input.value.trim().toUpperCase();
-    if (!CODE_RE.test(code)) return showMsg($("#join-msg"), "error", MSG.badCode);
-    go(code);
-  });
-
-  if (error) showMsg($("#join-msg"), "error", error);
+  const uid = user.uid;
+  getDocs(query(collection(db, "groups"), where("ownerUid", "==", uid)))
+    .then((snap) => {
+      const el = $("#groups");
+      if (!el || !user || user.uid !== uid) return;
+      const groups = snap.docs
+        .map((d) => ({ code: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      if (!groups.length) {
+        el.innerHTML = `<li class="empty">${bi("No groups yet. Create one above!", "아직 그룹이 없어요. 위에서 만들어 보세요!")}</li>`;
+        return;
+      }
+      el.innerHTML = groups
+        .map((g) => {
+          const date = g.createdAt?.toDate?.();
+          const when = date ? date.toLocaleDateString(lang === "ko" ? "ko-KR" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+          const n = Array.isArray(g.names) ? g.names.length : 0;
+          return `<li><button class="group-item btn-secondary" data-code="${esc(g.code)}">
+            <span class="group-title">${esc(g.title || g.code)}</span>
+            <span class="group-meta">${bi(`${n} people`, `${n}명`)} · ${esc(g.code)}${when ? ` · ${esc(when)}` : ""}</span>
+          </button></li>`;
+        })
+        .join("");
+      el.querySelectorAll("[data-code]").forEach((b) => b.addEventListener("click", () => go(b.dataset.code, "host")));
+    })
+    .catch((err) => {
+      console.error(err);
+      const el = $("#groups");
+      if (el) el.innerHTML = `<li>${bi(MSG.generic[0], MSG.generic[1])}</li>`;
+    });
 }
 
 function renderCreate() {
+  if (!user) return renderHome();
   const names = [];
 
   render(`
     <section class="card stack">
       <h2>${bi("Create a new group", "새 그룹 만들기")}</h2>
+      <div>
+        <label class="field-label" for="title">${bi("Group name (optional)", "그룹 이름 (선택)")}</label>
+        <input id="title" maxlength="${MAX_TITLE}" autocomplete="off" ${ph("e.g. Family Christmas 2026", "예: 2026 가족 크리스마스")}>
+      </div>
       ${instr(
         `Add the name of everyone who's joining, including yourself if you're playing. You need at least ${MIN_PEOPLE} people.`,
         `본인을 포함해 참여하는 모든 사람의 이름을 추가하세요. 최소 ${MIN_PEOPLE}명이 필요합니다.`
       )}
       <form id="add" class="row" novalidate>
-        <input id="name" maxlength="${MAX_NAME}" placeholder="Name · 이름" autocomplete="off" aria-label="Name / 이름">
+        <input id="name" maxlength="${MAX_NAME}" autocomplete="off" ${ph("Name", "이름")} ${al("Name", "이름")}>
         <button type="submit">${bi("Add", "추가")}</button>
       </form>
       <div id="add-msg"></div>
@@ -236,7 +359,7 @@ function renderCreate() {
         "Double-check the names. They can't be changed after the group is created.",
         "이름을 다시 확인하세요. 그룹이 만들어진 후에는 변경할 수 없습니다."
       )}
-      <button id="generate" disabled>${bi("Generate group code", "그룹 코드 생성")}</button>
+      <button id="generate" disabled>${bi("Create group and draw names", "그룹 만들고 추첨하기")}</button>
       <div id="gen-msg"></div>
     </section>
 
@@ -249,7 +372,7 @@ function renderCreate() {
     $("#chips").innerHTML = names
       .map(
         (n, i) => `<li class="chip">${esc(n)}
-          <button type="button" data-remove="${i}" aria-label="Remove ${esc(n)} / 삭제">×</button></li>`
+          <button type="button" data-remove="${i}" ${al(`Remove ${n}`, `${n} 삭제`)}>×</button></li>`
       )
       .join("");
     $("#count").innerHTML = names.length
@@ -285,7 +408,7 @@ function renderCreate() {
   });
 
   genBtn.addEventListener("click", async () => {
-    if (names.length < MIN_PEOPLE) return;
+    if (names.length < MIN_PEOPLE || !user) return;
     const original = genBtn.innerHTML;
     genBtn.disabled = true;
     genBtn.innerHTML = bi("Creating…", "생성 중…");
@@ -296,15 +419,17 @@ function renderCreate() {
         if (!(await getDoc(groupRef(candidate))).exists()) code = candidate;
       }
       if (!code) throw new Error("Could not find a free code");
-      const hostKey = makeHostKey();
-      await setDoc(groupRef(code), {
+      const title = $("#title").value.replace(/\s+/g, " ").trim().slice(0, MAX_TITLE);
+      const data = {
         names: [...names],
         giftees: makeAssignments(names.length),
-        hostKeyHash: await hashHostKey(code, hostKey),
+        ownerUid: user.uid,
         createdAt: serverTimestamp(),
-      });
-      saveHostKey(code, hostKey);
-      renderCreated(code, hostKey);
+      };
+      if (title) data.title = title;
+      await setDoc(groupRef(code), data);
+      history.pushState(null, "", `?g=${code}&view=host`);
+      openGroup(code, { hostView: true, justCreated: true });
     } catch (err) {
       console.error(err);
       showMsg($("#gen-msg"), "error", MSG.generic);
@@ -317,66 +442,45 @@ function renderCreate() {
   input.focus();
 }
 
-function renderCreated(code, hostKey) {
-  render(`
-    <section class="card stack center">
-      <h2>${bi("Your group is ready!", "그룹이 준비되었어요!")}</h2>
-      ${instr("Share this code or link with everyone in the group.", "이 코드나 링크를 그룹의 모든 사람에게 공유하세요.")}
-      <div class="code-display">${code}</div>
-      <button id="copy">${bi("Copy group link", "그룹 링크 복사")}</button>
-      <button class="btn-secondary" id="open">${bi("Open group", "그룹 열기")}</button>
-    </section>
-
-    <section class="card stack">
-      <h2>${bi("Host view", "호스트 화면")}</h2>
-      ${instr(
-        "See who has joined and set their PIN. This device remembers you as the host. To check from another device, save the private host link and don't share it.",
-        "누가 참여해서 PIN을 설정했는지 확인할 수 있습니다. 이 기기는 호스트로 기억됩니다. 다른 기기에서 확인하려면 비공개 호스트 링크를 저장하고, 다른 사람과 공유하지 마세요."
-      )}
-      <button id="host">${bi("Open host view", "호스트 화면 열기")}</button>
-      <button class="btn-secondary" id="copy-host">${bi("Copy private host link", "비공개 호스트 링크 복사")}</button>
-    </section>
-
-    <section class="card">
-      ${instr(
-        "Everyone has already been assigned, and it's kept secret. Not even you, the host, can see who got whom.",
-        "모든 배정은 이미 완료되었으며 비밀로 유지됩니다. 호스트인 당신도 누가 누구에게 선물하는지 볼 수 없어요."
-      )}
-    </section>`);
-
-  $("#copy").addEventListener("click", (e) => copyLink(code, e.currentTarget));
-  $("#copy-host").addEventListener("click", (e) => copyLink(code, e.currentTarget, hostUrl(code, hostKey)));
-  $("#open").addEventListener("click", () => go(code));
-  $("#host").addEventListener("click", () => openGroup(code, { hostView: true }));
-}
-
-function renderHostView(code, group) {
-  const hostKey = loadHostKey(code);
+function renderHostView(code, group, { justCreated = false } = {}) {
   const total = group.names.length;
 
   render(`
-    <section class="card">
-      <h2>${bi("Host view", "호스트 화면")}</h2>
+    ${accountBar()}
+    ${justCreated ? `<div class="msg ok banner" role="status">${bi("Your group is ready! Names have been drawn.", "그룹이 준비되었어요! 추첨이 완료되었습니다.")}</div>` : ""}
+
+    <section class="card stack center">
+      <h2>${esc(groupLabel(code, group))}</h2>
       ${instr(
-        "Here's who has set their PIN so far. Assignments stay hidden.",
-        "지금까지 PIN을 설정한 사람을 확인할 수 있습니다. 배정 결과는 공개되지 않습니다."
+        "Send this link to everyone in the group. If someone loses it, just send it again.",
+        "이 링크를 그룹의 모든 사람에게 보내세요. 링크를 잃어버린 사람이 있으면 다시 보내면 됩니다."
+      )}
+      <div class="code-display">${code}</div>
+      <button id="share">${bi("Share group link", "그룹 링크 공유")}</button>
+      <button class="btn-secondary" id="copy">${bi("Copy group link", "그룹 링크 복사")}</button>
+    </section>
+
+    <section class="card">
+      <h2>${bi("Who's joined", "참여 현황")}</h2>
+      ${instr(
+        "Here's who has opened the link and set their PIN. Assignments stay hidden, even from you.",
+        "링크를 열고 PIN을 설정한 사람을 확인할 수 있습니다. 배정 결과는 호스트에게도 공개되지 않습니다."
       )}
       <p class="progress" id="progress"></p>
       <div class="progress-bar"><span id="bar"></span></div>
       <ul class="status-list" id="status"></ul>
     </section>
 
-    <section class="card stack center">
+    <section class="card stack">
       ${instr(
-        "Send the group link to anyone who hasn't joined yet.",
-        "아직 참여하지 않은 사람에게 그룹 링크를 보내세요."
+        "Playing too? Open the group as a participant to see who you're buying for.",
+        "직접 참여하시나요? 참여자로 그룹을 열어 누구에게 선물할지 확인하세요."
       )}
-      <div class="code-display">${code}</div>
-      <button id="copy">${bi("Copy group link", "그룹 링크 복사")}</button>
-      ${hostKey ? `<button class="btn-secondary" id="copy-host">${bi("Copy private host link", "비공개 호스트 링크 복사")}</button>` : ""}
+      <button class="btn-secondary" id="play">${bi("Open as participant", "참여자로 열기")}</button>
     </section>
 
-    <button class="btn-ghost" id="back">${bi("← Back to group", "← 그룹으로 돌아가기")}</button>`);
+    <button class="btn-ghost" id="back">${bi("← My groups", "← 내 그룹")}</button>`);
+  wireAccountBar();
 
   function draw(joined) {
     const n = joined.size;
@@ -390,7 +494,7 @@ function renderHostView(code, group) {
         const ok = joined.has(String(i));
         return `<li class="status ${ok ? "is-ready" : ""}">
           <span class="status-name">${esc(name)}</span>
-          <span class="status-badge">${ok ? bi("✓ PIN set", "PIN 설정됨") : bi("Waiting", "대기 중")}</span>
+          <span class="status-badge">${ok ? bi("✓ PIN set", "✓ PIN 설정됨") : bi("Waiting", "대기 중")}</span>
         </li>`;
       })
       .join("");
@@ -404,23 +508,21 @@ function renderHostView(code, group) {
   );
   cleanups.push(unsub);
 
+  $("#share").addEventListener("click", (e) => shareLink(code, group, e.currentTarget));
   $("#copy").addEventListener("click", (e) => copyLink(code, e.currentTarget));
-  if (hostKey) $("#copy-host").addEventListener("click", (e) => copyLink(code, e.currentTarget, hostUrl(code, hostKey)));
-  $("#back").addEventListener("click", () => openGroup(code));
+  $("#play").addEventListener("click", () => go(code));
+  $("#back").addEventListener("click", () => go(null));
 }
 
-// Small "Host view" button shown on group pages for the host's device.
-const hostButton = (code) =>
-  loadHostKey(code) ? `<button class="btn-secondary" id="host-view">${bi("Host view", "호스트 화면")}</button>` : "";
+// "Host view" button on participant pages, shown only to the signed-in host.
+const hostButton = (group) =>
+  isOwner(group) ? `<button class="btn-secondary" id="host-view">${bi("Host view", "호스트 화면")}</button>` : "";
 function wireHostButton(code) {
   const b = $("#host-view");
-  if (b) b.addEventListener("click", () => openGroup(code, { hostView: true }));
+  if (b) b.addEventListener("click", () => go(code, "host"));
 }
 
-async function openGroup(code, { hostView = false } = {}) {
-  if (new URLSearchParams(location.search).get("g") !== code) {
-    history.pushState(null, "", `?g=${code}`);
-  }
+async function openGroup(code, { hostView = false, justCreated = false } = {}) {
   renderLoading();
   let group;
   try {
@@ -437,16 +539,11 @@ async function openGroup(code, { hostView = false } = {}) {
     return renderHome(MSG.generic);
   }
 
-  // A private host link looks like ?g=CODE#host=KEY.
-  const linkKey = new URLSearchParams(location.hash.slice(1)).get("host");
-  if (linkKey) {
-    history.replaceState(null, "", `?g=${code}`);
-    if (group.hostKeyHash && (await hashHostKey(code, linkKey)) === group.hostKeyHash) {
-      saveHostKey(code, linkKey);
-      hostView = true;
-    }
+  if (hostView) {
+    if (isOwner(group)) return renderHostView(code, group, { justCreated });
+    if (!user) return renderHostSignIn(code);
+    history.replaceState(null, "", `?g=${code}`); // signed in, but not this group's host
   }
-  if (hostView && loadHostKey(code)) return renderHostView(code, group);
 
   const session = loadSession(code);
   if (session && session.pinHash && group.names[session.memberId] !== undefined) {
@@ -455,22 +552,37 @@ async function openGroup(code, { hostView = false } = {}) {
   return renderPicker(code, group);
 }
 
+function renderHostSignIn(code) {
+  render(`
+    <section class="card stack">
+      <h2>${bi("Host sign-in", "호스트 로그인")}</h2>
+      ${instr(
+        "Sign in with the Google account you used to create this group.",
+        "이 그룹을 만들 때 사용한 Google 계정으로 로그인하세요."
+      )}
+      <button id="sign-in">${bi("Sign in with Google", "Google로 로그인")}</button>
+      <div id="msg"></div>
+    </section>
+    <button class="btn-ghost" id="play">${bi("I'm a participant", "참여자입니다")}</button>`);
+  $("#sign-in").addEventListener("click", (e) => signIn(e.currentTarget, $("#msg")));
+  $("#play").addEventListener("click", () => go(code));
+}
+
 function renderPicker(code, group) {
   render(`
     <section class="card">
+      ${group.title ? `<p class="label">${esc(group.title)}</p>` : ""}
       <h2>${bi("Select your name", "본인의 이름을 선택하세요")}</h2>
       ${instr("Tap your own name to continue.", "계속하려면 본인의 이름을 누르세요.")}
       <div class="name-grid">
         ${group.names.map((n, i) => `<button class="btn-secondary" data-i="${i}">${esc(n)}</button>`).join("")}
       </div>
     </section>
-    ${hostButton(code)}
-    <button class="btn-ghost" id="home">${bi("← Home", "← 홈으로")}</button>`);
+    ${hostButton(group)}`);
 
   app.querySelectorAll("[data-i]").forEach((b) =>
     b.addEventListener("click", () => renderPin(code, group, Number(b.dataset.i)))
   );
-  $("#home").addEventListener("click", () => go(null));
   wireHostButton(code);
 }
 
@@ -596,22 +708,12 @@ function renderDashboard(code, group, session) {
         "받고 싶은 선물을 적어주세요. 당신의 시크릿 산타가 이 내용을 보게 됩니다."
       )}
       <textarea id="my-list" rows="7" maxlength="${MAX_WISHLIST}"
-        placeholder="e.g. cozy socks, a good book, coffee beans…&#10;예: 포근한 양말, 좋은 책, 원두…"
-        aria-label="My wishlist / 나의 위시리스트"></textarea>
+        ${ph("e.g. cozy socks, a good book, coffee beans…", "예: 포근한 양말, 좋은 책, 원두…")}
+        ${al("My wishlist", "나의 위시리스트")}></textarea>
       <button id="save">${bi("Save wishlist", "위시리스트 저장")}</button>
       <div id="save-msg"></div>
     </section>
-
-    <section class="card stack center">
-      <h2>${bi("Invite others", "다른 사람 초대하기")}</h2>
-      ${instr(
-        "Share the group code or link with anyone who hasn't joined yet.",
-        "아직 참여하지 않은 사람에게 그룹 코드나 링크를 공유하세요."
-      )}
-      <div class="code-display">${code}</div>
-      <button class="btn-secondary" id="copy">${bi("Copy link", "링크 복사")}</button>
-      ${hostButton(code)}
-    </section>`);
+    ${hostButton(group)}`);
   wireHostButton(code);
 
   // Live view of the person you're buying for.
@@ -666,8 +768,21 @@ function renderDashboard(code, group, session) {
     clearSession(code);
     renderPicker(code, group);
   });
-  $("#copy").addEventListener("click", (e) => copyLink(code, e.currentTarget));
 }
 
 /* ---------- Start ---------- */
-route();
+// Wait for Firebase to restore any saved sign-in before the first render,
+// then re-render whenever the host signs in or out.
+if (configured) {
+  onAuthStateChanged(auth, (u) => {
+    const changed = (u && u.uid) !== (user && user.uid);
+    const first = !route.started;
+    user = u;
+    if (first || changed) {
+      route.started = true;
+      route();
+    }
+  });
+} else {
+  route();
+}
