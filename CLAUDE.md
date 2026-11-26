@@ -11,7 +11,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 | `app.js` | All logic: language toggle, Google sign-in, host home/groups list, create, host view, participant picker/PIN/wishlist. Imports Firebase SDK 10.12.2 (app, auth, firestore) from `https://www.gstatic.com/firebasejs/...` |
 | `firebase-config.js` | Web app config. `configured` in `app.js` treats an `apiKey` starting with `YOUR_` as "not configured" |
 | `firestore.rules` | Security rules; source of truth (deploy from here) |
-| `style.css` | Grey-blue, mobile-first theme. The header is one flex row (brand left, `#lang` toggle right). `main` has `position: relative; z-index: 1` so the first card overlaps the header. |
+| `style.css` | Grey-blue, mobile-first theme. The header is one flex row: brand on the left, `.header-actions` on the right (`#account` person icon with the `#account-menu` dropdown, then the `#lang` toggle). `main` has `position: relative; z-index: 1` so the first card overlaps the header. |
 | `README.md` | User-facing setup/deploy docs |
 
 ## Data model (see header of `firestore.rules`)
@@ -21,6 +21,7 @@ Backend: **Firestore** plus **Firebase Auth (Google sign-in) for hosts only**, b
 - `groups/{code}/proofs/{i}` — `{ pinHash, at }`, never readable; written alongside each wishlist update
 
 ## Routes & UX
+- Account: the person icon in the header opens a menu. Signed in, it shows the name, "My groups" (go home) and "Sign out"; signed out, it shows "Sign in with Google". `drawAccountMenu()` runs on every auth change. There is no in-page account bar.
 - `/` — signed out: a single "Sign in with Google" card. Signed in: Create group plus **Your groups** list (query `where ownerUid == uid`, sorted by `createdAt` on the client so no composite index is needed). There is **no join-by-code form**; this is by design.
 - `?g=CODE` — participant: pick name → PIN → dashboard (giftee + wishlist). The owner also sees a "Host view" button.
 - The PIN screen is a full-card number pad (`renderPin`): it moves on as soon as the 4th digit is entered. A new PIN is entered twice; a wrong PIN shakes the dots. It also accepts keyboard digits and Backspace. The keys are sized with `dvh` so the screen fits on a phone without scrolling.

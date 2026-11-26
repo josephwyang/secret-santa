@@ -356,7 +356,6 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 
 /* ---------- Language toggle ---------- */
 .lang-toggle {
-  order: 2;
   flex: 0 0 auto;
   width: auto;
   min-height: 2.3rem;
@@ -373,19 +372,61 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 }
 .lang-toggle:hover { background: rgba(255, 255, 255, 0.18); }
 
-/* ---------- Account & host's groups ---------- */
-.account {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
-  margin: 0 0.3rem 0.8rem;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-.account-name { overflow-wrap: anywhere; font-weight: 600; }
-.account .btn-ghost { margin: 0; flex: 0 0 auto; font-size: 0.85rem; }
+/* ---------- Header actions: account menu + language ---------- */
+.header-actions { display: flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
+.account-wrap { position: relative; }
 
+.icon-btn {
+  width: 2.3rem;
+  min-height: 2.3rem;
+  height: 2.3rem;
+  padding: 0;
+  border-radius: 50%;
+  color: #eef2f6;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: none;
+}
+.icon-btn:hover { background: rgba(255, 255, 255, 0.18); }
+.icon-btn.is-signed-in { background: rgba(255, 255, 255, 0.92); color: var(--deep); border-color: transparent; }
+
+.account-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 10;
+  min-width: 13rem;
+  padding: 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+.account-menu[hidden] { display: none; }
+.menu-who {
+  padding: 0.55rem 0.75rem 0.6rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.menu-item {
+  min-height: 2.6rem;
+  padding: 0.5rem 0.75rem;
+  align-items: flex-start;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: none;
+}
+.menu-item:hover { background: var(--surface-2); }
+
+/* ---------- Host's groups ---------- */
 .group-list { list-style: none; margin: 0.6rem 0 0; padding: 0; }
 .group-list li + li { margin-top: 0.6rem; }
 .group-item { align-items: flex-start; text-align: left; }

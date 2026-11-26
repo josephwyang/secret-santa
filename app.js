@@ -233,17 +233,43 @@ async function signIn(btn, msgEl) {
   }
 }
 
-const accountBar = () =>
-  user
-    ? `<div class="account">
-        <span class="account-name">${esc(user.displayName || user.email || "")}</span>
-        <button class="btn-ghost" id="sign-out">${bi("Sign out", "로그아웃")}</button>
-      </div>`
-    : "";
-function wireAccountBar() {
-  const b = $("#sign-out");
-  if (b) b.addEventListener("click", () => signOut(auth));
+// Person icon in the header: a small menu to sign in, or go to "My groups" / sign out.
+const accountBtn = document.getElementById("account");
+const accountMenu = document.getElementById("account-menu");
+
+function setMenuOpen(open) {
+  accountMenu.hidden = !open;
+  accountBtn.setAttribute("aria-expanded", String(open));
 }
+
+function drawAccountMenu() {
+  accountBtn.classList.toggle("is-signed-in", !!user);
+  accountMenu.innerHTML = user
+    ? `<div class="menu-who">${esc(user.displayName || user.email || "")}</div>
+       <button type="button" class="menu-item" role="menuitem" data-act="groups">${bi("My groups", "내 그룹")}</button>
+       <button type="button" class="menu-item" role="menuitem" data-act="out">${bi("Sign out", "로그아웃")}</button>`
+    : `<button type="button" class="menu-item" role="menuitem" data-act="in">${bi("Sign in with Google", "Google로 로그인")}</button>`;
+}
+
+accountBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setMenuOpen(accountMenu.hidden);
+});
+accountMenu.addEventListener("click", (e) => {
+  const item = e.target.closest("[data-act]");
+  if (!item) return;
+  setMenuOpen(false);
+  if (item.dataset.act === "groups") go(null);
+  else if (item.dataset.act === "out") signOut(auth).then(() => go(null));
+  else if (item.dataset.act === "in") signIn();
+});
+document.addEventListener("click", (e) => {
+  if (!accountMenu.hidden && !e.target.closest(".account-wrap")) setMenuOpen(false);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !accountMenu.hidden) { setMenuOpen(false); accountBtn.focus(); }
+});
+drawAccountMenu();
 
 /* ---------- Views ---------- */
 function renderSetup() {
@@ -271,7 +297,6 @@ function renderHome(error) {
   }
 
   render(`
-    ${accountBar()}
     <section class="card stack">
       <button id="create">${bi("+ New group", "+ 새 그룹")}</button>
       <div id="home-msg"></div>
@@ -281,7 +306,6 @@ function renderHome(error) {
       <h2>${bi("Your groups", "내 그룹")}</h2>
       <ul class="group-list" id="groups"><li class="loading"><span class="spinner"></span></li></ul>
     </section>`);
-  wireAccountBar();
   $("#create").addEventListener("click", renderCreate);
   if (error) showMsg($("#home-msg"), "error", error);
 
@@ -424,7 +448,6 @@ function renderHostView(code, group, { justCreated = false } = {}) {
   const total = group.names.length;
 
   render(`
-    ${accountBar()}
     ${justCreated ? `<div class="msg ok banner" role="status">${bi("Done! Names are drawn.", "완료! 추첨이 끝났어요.")}</div>` : ""}
 
     <section class="card stack center">
@@ -445,7 +468,6 @@ function renderHostView(code, group, { justCreated = false } = {}) {
     <button class="btn-secondary" id="play">${bi("Open as participant", "참여자로 열기")}</button>
 
     <button class="btn-ghost" id="back">${bi("← My groups", "← 내 그룹")}</button>`);
-  wireAccountBar();
 
   function draw(joined) {
     const n = joined.size;
@@ -789,6 +811,7 @@ if (configured) {
     const changed = (u && u.uid) !== (user && user.uid);
     const first = !route.started;
     user = u;
+    drawAccountMenu();
     if (first || changed) {
       route.started = true;
       route();
