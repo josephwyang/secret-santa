@@ -540,7 +540,7 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 }
 
 /* ---------- Host actions ---------- */
-.host-actions { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.8rem; }
+.host-actions { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 0.1rem; }
 .btn-row { display: flex; gap: 0.7rem; }
 .btn-row > button { flex: 1; min-width: 0; }
 .btn-danger {
