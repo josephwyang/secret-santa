@@ -504,3 +504,5 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .key:hover { background: rgba(75, 107, 140, 0.08); }
 .key:active { background: rgba(75, 107, 140, 0.18); transform: scale(0.94); }
 .key-del { color: var(--muted); }
+
+.save-status { min-height: 1.3em; margin-top: 0.4rem; font-size: 0.85rem; font-weight: 600; color: var(--muted); text-align: right; }

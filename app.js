@@ -742,8 +742,7 @@ function renderDashboard(code, group, session) {
       <textarea id="my-list" rows="7" maxlength="${MAX_WISHLIST}"
         ${ph("e.g. warm socks, a book…", "예: 따뜻한 양말, 책…")}
         ${al("What do you want?", "받고 싶은 선물")}></textarea>
-      <button id="save">${bi("Save", "저장")}</button>
-      <div id="save-msg"></div>
+      <div class="save-status" id="save-msg" role="status"></div>
     </section>
     ${hostButton(group)}`);
   wireHostButton(code);
@@ -762,38 +761,63 @@ function renderDashboard(code, group, session) {
   );
   cleanups.push(unsub);
 
-  // Load my own wishlist.
+  // Load my own wishlist, then autosave a moment after typing stops (and when leaving the page).
   const textarea = $("#my-list");
-  let dirty = false;
-  textarea.addEventListener("input", () => { dirty = true; $("#save-msg").innerHTML = ""; });
+  const statusEl = $("#save-msg");
+  let saved = null;      // text last confirmed saved
+  let timer = null;
+  let saving = false;
+  let again = false;
+  const status = (pair) => { if (statusEl) statusEl.innerHTML = pair ? bi(pair[0], pair[1]) : ""; };
+
   getDoc(memberRef(code, me))
     .then((snap) => {
-      if (!dirty && snap.exists()) textarea.value = snap.data().wishlist || "";
+      const text = snap.exists() ? snap.data().wishlist || "" : "";
+      if (saved === null && !textarea.value) textarea.value = text;
+      if (saved === null) saved = text;
     })
     .catch((err) => console.error(err));
 
-  const saveBtn = $("#save");
-  saveBtn.addEventListener("click", async () => {
-    saveBtn.disabled = true;
-    const msgEl = $("#save-msg");
-    msgEl.innerHTML = "";
+  async function save() {
+    clearTimeout(timer);
+    const text = textarea.value.slice(0, MAX_WISHLIST);
+    if (text === saved) return;
+    if (saving) { again = true; return; }
+    saving = true;
+    status(["Saving…", "저장 중…"]);
     try {
       const batch = writeBatch(db);
       batch.set(proofRef(code, me), { pinHash: session.pinHash, at: serverTimestamp() });
-      batch.update(memberRef(code, me), { wishlist: textarea.value.slice(0, MAX_WISHLIST), updatedAt: serverTimestamp() });
+      batch.update(memberRef(code, me), { wishlist: text, updatedAt: serverTimestamp() });
       await batch.commit();
-      dirty = false;
-      showMsg(msgEl, "ok", ["Saved!", "저장되었습니다!"]);
+      saved = text;
+      status(["Saved ✓", "저장됨 ✓"]);
     } catch (err) {
       if (err && err.code === "permission-denied") {
         clearSession(code);
         return renderPin(code, group, me, ["Please enter your PIN again.", "비밀번호를 다시 입력하세요."]);
       }
       console.error(err);
-      showMsg(msgEl, "error", MSG.generic);
+      status(["Couldn't save. Will retry.", "저장하지 못했어요. 다시 시도할게요."]);
+      timer = setTimeout(save, 4000);
     } finally {
-      saveBtn.disabled = false;
+      saving = false;
+      if (again) { again = false; save(); }
     }
+  }
+
+  textarea.addEventListener("input", () => {
+    if (saved === null) saved = ""; // typed before the old list loaded; don't overwrite their typing
+    status(null);
+    clearTimeout(timer);
+    timer = setTimeout(save, 1000);
+  });
+  textarea.addEventListener("blur", save);
+  const onHide = () => { if (document.visibilityState === "hidden") save(); };
+  document.addEventListener("visibilitychange", onHide);
+  cleanups.push(() => {
+    document.removeEventListener("visibilitychange", onHide);
+    save(); // leaving this screen (e.g. "Not you?")
   });
 
   $("#switch").addEventListener("click", () => {
