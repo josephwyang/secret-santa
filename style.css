@@ -624,4 +624,15 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .person-count:empty { display: none; }
 .chevron { color: var(--muted); transition: transform 0.15s ease; flex: 0 0 auto; }
 .person-head[aria-expanded="true"] .chevron { transform: rotate(90deg); }
-.person .gift-list { margin: 0 0 0.6rem; padding-left: 0.2rem; }
+/* An open person's gifts sit in their own inset card, without lines between gifts. */
+.person .gift-list {
+  margin: 0 0 0.9rem;
+  padding: 0.35rem 0.9rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.person .gift { border-bottom: 0; padding: 0.5rem 0; }
+.person .gift-btn { background: var(--surface); }
+.person .gift.is-mine .gift-btn { background: var(--ok-bg); }
+.person .gift.is-taken .gift-btn { background: transparent; }
