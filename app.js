@@ -173,7 +173,7 @@ function parseItem(item) {
 function giftHtml(item) {
   const { label, url } = parseItem(item);
   if (!url) return esc(label);
-  return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}<svg class="ext" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>`;
+  return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}<svg class="ext" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></a>`;
 }
 
 // Stable 16-hex id for a gift (case and spacing ignored), used for "I'll get it" marks.

@@ -672,8 +672,8 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .person .gift.is-taken .gift-btn { background: var(--danger-bg); }
 
 /* Links in wishlists */
-.gift-text a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
-.gift-text .ext { margin-left: 0.3rem; vertical-align: -0.1em; opacity: 0.6; }
+.gift-text a { color: inherit; text-decoration: underline; text-decoration-color: var(--muted); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+.gift-text .ext { margin-left: 0.3rem; vertical-align: -0.1em; }
 
 /* Add box: a pasted link becomes a chip inside the same box, above the name input */
 .item-field {
