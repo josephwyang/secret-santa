@@ -16,6 +16,9 @@
   --ok: #3d7560;
   --ok-bg: #e0eee8;
   --warn: #b08214;
+  --holly: #a3333d;
+  --holly-hover: #80262f;
+  --pine: #2f5d46;
   --radius: 22px;
   --shadow: 0 14px 34px -16px rgba(30, 42, 54, 0.32), 0 2px 6px rgba(30, 42, 54, 0.06);
 }
@@ -53,6 +56,17 @@ main.is-centered > .view { margin-block: auto; }
   background: linear-gradient(160deg, var(--deep) 0%, var(--deep-2) 100%);
   color: #eef2f6;
   padding: calc(0.7rem + env(safe-area-inset-top)) max(1rem, calc((100% - 640px) / 2 + 1rem)) 0.7rem;
+}
+
+/* Ribbon stripe along the bottom of the header */
+.site-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, var(--holly) 0 14px, #fff 14px 20px, var(--pine) 20px 34px, #fff 34px 40px);
 }
 
 .brand {
@@ -139,7 +153,7 @@ button {
   padding: 0.7rem 1.2rem;
   border: 0;
   border-radius: 16px;
-  background: var(--accent);
+  background: var(--holly);
   color: #fff;
   cursor: pointer;
   display: flex;
@@ -148,11 +162,14 @@ button {
   justify-content: center;
   line-height: 1.25;
   transition: background 0.15s ease, transform 0.06s ease, box-shadow 0.15s ease;
-  box-shadow: 0 6px 16px -8px rgba(60, 89, 116, 0.6);
+  box-shadow: 0 6px 16px -8px rgba(128, 38, 47, 0.55);
 }
-button:hover { background: var(--accent-hover); }
+button:hover { background: var(--holly-hover); }
 button:active { transform: scale(0.985); }
-button:focus-visible { outline: 3px solid #9fb3c8; outline-offset: 2px; }
+button:focus-visible { outline: 3px solid rgba(163, 51, 61, 0.45); outline-offset: 2px; }
+/* The PIN pad and gift pills keep their original slate focus ring. */
+.key:focus-visible,
+.gift-btn:focus-visible { outline-color: #9fb3c8; }
 button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 .btn-secondary {
@@ -165,7 +182,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 .btn-ghost {
   background: transparent;
-  color: var(--accent);
+  color: var(--holly);
   box-shadow: none;
   min-height: auto;
   padding: 0.6rem 0.8rem;
@@ -173,7 +190,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
   width: auto;
   margin: 0 auto;
 }
-.btn-ghost:hover { background: rgba(75, 107, 140, 0.08); }
+.btn-ghost:hover { background: rgba(163, 51, 61, 0.08); }
 
 /* ---------- Inputs ---------- */
 input,
@@ -283,8 +300,24 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .topbar .btn-ghost { margin: 0; flex: 0 0 auto; font-size: 0.85rem; }
 
 .santa-card {
-  background: linear-gradient(160deg, #f8fafc 0%, #e9eff5 100%);
+  background: var(--surface);
+  padding: 0.4rem;
 }
+@media (min-width: 720px) { .santa-card { padding: 0.4rem; } }
+/* Inner dashed border so the card looks stitched */
+.santa-inner {
+  border: 1.5px dashed var(--line);
+  border-radius: 16px;
+  padding: 1.1rem 1rem;
+}
+@media (min-width: 720px) { .santa-inner { padding: 1.5rem 1.6rem; } }
+.santa-inner > .label:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--holly);
+}
+.pine { flex: 0 0 auto; color: var(--pine); }
 
 .giftee-name {
   margin: 0.1rem 0 1.3rem;

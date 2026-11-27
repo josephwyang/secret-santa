@@ -833,10 +833,12 @@ function renderDashboard(code, group, session) {
     </div>
 
     <section class="card santa-card">
-      <p class="label">${bi("You're the Secret Santa for", "내가 시크릿 산타가 되어줄 사람")}</p>
-      <div class="giftee-name">${esc(gifteeName)}</div>
-      <p class="label">${bi(`${gifteeName} wants`, `${gifteeName}님이 원하는 것`)}</p>
-      <ul class="gift-list" id="list-${gifteeIndex}"></ul>
+      <div class="santa-inner">
+        <p class="label"><svg class="pine" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L20 4"/><path d="M8 16l-3-1M8 16l1 3M11 13l-4-1.5M11 13l1.5 4M14 10l-4-2M14 10l2 4M17 7l-3-2.5M17 7l2.5 3"/></svg>${bi("You're the Secret Santa for", "내가 시크릿 산타가 되어줄 사람")}</p>
+        <div class="giftee-name">${esc(gifteeName)}</div>
+        <p class="label">${bi(`${gifteeName} wants`, `${gifteeName}님이 원하는 것`)}</p>
+        <ul class="gift-list" id="list-${gifteeIndex}"></ul>
+      </div>
     </section>
 
     <section class="card stack">
