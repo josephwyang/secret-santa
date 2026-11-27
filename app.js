@@ -31,6 +31,7 @@ const MAX_NAME = 40;
 const MAX_TITLE = 60;
 const MAX_WISHLIST = 5000;
 const MAX_ITEM = 200;
+const MAX_URL = 1000;
 
 /* ---------- Firebase ---------- */
 const configured =
@@ -151,6 +152,28 @@ function splitItems(text) {
     .split(/\r?\n/)
     .map((line) => line.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/, "").replace(/\s+/g, " ").trim())
     .filter(Boolean);
+}
+
+// A gift can carry a link, stored on the same line as "label https://...".
+const URL_RE = /(?:https?:\/\/|www\.)\S+/i;
+function normUrl(u) {
+  const url = /^https?:\/\//i.test(u) ? u : `https://${u}`;
+  try { return new URL(url).href; } catch { return null; }
+}
+function hostOf(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
+}
+function parseItem(item) {
+  const m = String(item).match(/^(.*?)\s*((?:https?:\/\/|www\.)\S+)$/i);
+  const url = m && normUrl(m[2]);
+  if (!url) return { label: item, url: null };
+  return { label: m[1].trim() || hostOf(url), url };
+}
+// Gift text as HTML: a plain label, or the label as a link that opens in a new tab.
+function giftHtml(item) {
+  const { label, url } = parseItem(item);
+  if (!url) return esc(label);
+  return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}<svg class="ext" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>`;
 }
 
 // Stable 16-hex id for a gift (case and spacing ignored), used for "I'll get it" marks.
@@ -844,8 +867,13 @@ function renderDashboard(code, group, session) {
     <section class="card stack">
       <h2>${bi("What do you want?", "받고 싶은 선물")}</h2>
       <form id="add-item" class="row" novalidate>
-        <input id="item" maxlength="${MAX_ITEM}" autocomplete="off" ${ph("e.g. warm socks", "예: 따뜻한 양말")} ${al("Gift", "선물")}>
+        <input id="item" maxlength="${MAX_URL}" autocomplete="off" ${ph("e.g. warm socks", "예: 따뜻한 양말")} ${al("Gift", "선물")}>
         <button type="submit" id="add-btn" disabled>${bi("Add", "추가")}</button>
+        <button type="button" class="link-cancel" id="link-cancel" hidden ${al("Cancel link", "링크 취소")}>×</button>
+      </form>
+      <form id="add-label" class="row" novalidate hidden>
+        <input id="link-label" maxlength="${MAX_ITEM}" autocomplete="off" ${ph("What is it? e.g. warm socks", "무엇인가요? 예: 따뜻한 양말")} ${al("Gift name", "선물 이름")}>
+        <button type="submit">${bi("Add", "추가")}</button>
       </form>
       <ul class="my-items" id="my-items"></ul>
       <div class="save-status" id="save-msg" role="status"></div>
@@ -896,7 +924,7 @@ function renderDashboard(code, group, session) {
           : state === "taken" ? bi("Taken", "다른 사람이 사요")
           : bi("I'll get it", "제가 살게요");
         return `<li class="gift is-${state}">
-          <span class="gift-text">${esc(item)}</span>
+          <span class="gift-text">${giftHtml(item)}</span>
           <button type="button" class="gift-btn" data-mark="${id}" data-owner="${owner}" ${state === "taken" ? "disabled" : ""}>${label}</button>
         </li>`;
       })
@@ -920,8 +948,11 @@ function renderDashboard(code, group, session) {
     if (!el || !myItems) return;
     el.innerHTML = myItems.length
       ? myItems
-          .map((item, k) => `<li class="my-item"><span class="gift-text">${esc(item)}</span>
-            <button type="button" class="remove" data-remove="${k}" ${al(`Remove ${item}`, `${item} 삭제`)}>×</button></li>`)
+          .map((item, k) => {
+            const { label } = parseItem(item);
+            return `<li class="my-item"><span class="gift-text">${giftHtml(item)}</span>
+            <button type="button" class="remove" data-remove="${k}" ${al(`Remove ${label}`, `${label} 삭제`)}>×</button></li>`;
+          })
           .join("")
       : "";
   }
@@ -1037,20 +1068,58 @@ function renderDashboard(code, group, session) {
   }
 
   const input = $("#item");
-  $("#add-item").addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (!myItems) return;
-    const item = input.value.replace(/\s+/g, " ").trim().slice(0, MAX_ITEM);
-    if (!item) return;
-    input.value = "";
-    input.focus();
+  const labelForm = $("#add-label");
+  const labelInput = $("#link-label");
+  let pendingUrl = null; // a link waiting for its label
+
+  function linkMode(url) {
+    pendingUrl = url;
+    input.disabled = !!url;
+    $("#add-btn").hidden = !!url;
+    $("#link-cancel").hidden = !url;
+    labelForm.hidden = !url;
+    labelInput.value = "";
+    if (url) labelInput.focus();
+    else { input.value = ""; input.focus(); }
+  }
+
+  function addItem(item) {
     if (myItems.some((x) => itemKey(x) === itemKey(item))) return;
     if ([...myItems, item].join("\n").length > MAX_WISHLIST) return;
     if (saved === null) saved = myItems.join("\n");
     myItems.push(item);
     drawMine();
     save();
+  }
+
+  $("#add-item").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!myItems || pendingUrl) return;
+    const text = input.value.replace(/\s+/g, " ").trim();
+    if (!text) return;
+    const found = text.match(URL_RE);
+    const url = found && normUrl(found[0]);
+    if (url) {
+      // A link: use any other typed text as its label, otherwise ask for one.
+      const label = text.replace(found[0], " ").replace(/\s+/g, " ").trim().slice(0, MAX_ITEM);
+      if (!label) { input.value = url; return linkMode(url); }
+      input.value = "";
+      input.focus();
+      return addItem(`${label} ${url.slice(0, MAX_URL)}`);
+    }
+    input.value = "";
+    input.focus();
+    addItem(text.slice(0, MAX_ITEM));
   });
+  labelForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!myItems || !pendingUrl) return;
+    const label = labelInput.value.replace(/\s+/g, " ").trim().slice(0, MAX_ITEM) || hostOf(pendingUrl);
+    const url = pendingUrl.slice(0, MAX_URL);
+    linkMode(null);
+    addItem(`${label} ${url}`);
+  });
+  $("#link-cancel").addEventListener("click", () => linkMode(null));
   $("#my-items").addEventListener("click", (e) => {
     const b = e.target.closest("[data-remove]");
     if (!b || !myItems) return;
