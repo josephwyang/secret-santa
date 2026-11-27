@@ -212,7 +212,6 @@ textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(75, 107, 140, 0.16);
 }
-input:disabled { background: var(--surface-2); color: var(--muted); }
 input::placeholder,
 textarea::placeholder { color: #9aa8b6; }
 
@@ -672,18 +671,49 @@ textarea { resize: vertical; min-height: 9rem; line-height: 1.55; }
 .person .gift.is-mine .gift-btn { background: var(--ok-bg); }
 .person .gift.is-taken .gift-btn { background: var(--danger-bg); }
 
-/* Links in wishlists, and the "what is it?" row that follows a pasted link */
+/* Links in wishlists */
 .gift-text a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .gift-text .ext { margin-left: 0.3rem; vertical-align: -0.1em; opacity: 0.6; }
-#add-label { margin-top: 0.5rem; }
-.row > .link-cancel {
-  min-width: 3.3rem;
-  padding: 0;
-  font-size: 1.5rem;
-  font-weight: 500;
-  background: var(--surface-2);
-  color: var(--muted);
+
+/* Add box: a pasted link becomes a chip inside the same box, above the name input */
+.item-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.item-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(75, 107, 140, 0.16); }
+.item-field input,
+.item-field input:focus { border: 0; box-shadow: none; background: transparent; }
+.row > .item-field + button { align-self: stretch; }
+.link-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.5rem 0.5rem 0;
+  padding: 0.2rem 0.2rem 0.2rem 0.65rem;
+  background: var(--surface-2);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.link-host { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-chip .link-cancel {
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  min-height: 1.9rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--muted);
   box-shadow: none;
 }
-.row > .link-cancel:hover { background: #e2e8ee; color: var(--danger); }
+.link-chip .link-cancel:hover { background: #dde4eb; color: var(--danger); }

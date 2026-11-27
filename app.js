@@ -867,13 +867,15 @@ function renderDashboard(code, group, session) {
     <section class="card stack">
       <h2>${bi("What do you want?", "받고 싶은 선물")}</h2>
       <form id="add-item" class="row" novalidate>
-        <input id="item" maxlength="${MAX_URL}" autocomplete="off" ${ph("e.g. warm socks", "예: 따뜻한 양말")} ${al("Gift", "선물")}>
+        <div class="item-field">
+          <div class="link-chip" id="link-chip" hidden>
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+            <span class="link-host" id="link-host"></span>
+            <button type="button" class="link-cancel" id="link-cancel" ${al("Remove link", "링크 삭제")}>×</button>
+          </div>
+          <input id="item" maxlength="${MAX_URL}" autocomplete="off" ${ph("e.g. warm socks", "예: 따뜻한 양말")} ${al("Gift", "선물")}>
+        </div>
         <button type="submit" id="add-btn" disabled>${bi("Add", "추가")}</button>
-        <button type="button" class="link-cancel" id="link-cancel" hidden ${al("Cancel link", "링크 취소")}>×</button>
-      </form>
-      <form id="add-label" class="row" novalidate hidden>
-        <input id="link-label" maxlength="${MAX_ITEM}" autocomplete="off" ${ph("What is it? e.g. warm socks", "무엇인가요? 예: 따뜻한 양말")} ${al("Gift name", "선물 이름")}>
-        <button type="submit">${bi("Add", "추가")}</button>
       </form>
       <ul class="my-items" id="my-items"></ul>
       <div class="save-status" id="save-msg" role="status"></div>
@@ -1068,19 +1070,23 @@ function renderDashboard(code, group, session) {
   }
 
   const input = $("#item");
-  const labelForm = $("#add-label");
-  const labelInput = $("#link-label");
   let pendingUrl = null; // a link waiting for its label
 
+  // With a link pending, the box shows the link as a chip on top and asks for its name below it.
+  function setPh(en, ko) {
+    input.dataset.phEn = en;
+    input.dataset.phKo = ko;
+    input.placeholder = L(en, ko);
+  }
   function linkMode(url) {
     pendingUrl = url;
-    input.disabled = !!url;
-    $("#add-btn").hidden = !!url;
-    $("#link-cancel").hidden = !url;
-    labelForm.hidden = !url;
-    labelInput.value = "";
-    if (url) labelInput.focus();
-    else { input.value = ""; input.focus(); }
+    $("#link-chip").hidden = !url;
+    $("#link-host").textContent = url ? hostOf(url) : "";
+    input.maxLength = url ? MAX_ITEM : MAX_URL;
+    input.value = "";
+    if (url) setPh("What is it? e.g. warm socks", "무엇인가요? 예: 따뜻한 양말");
+    else setPh("e.g. warm socks", "예: 따뜻한 양말");
+    input.focus();
   }
 
   function addItem(item) {
@@ -1094,15 +1100,21 @@ function renderDashboard(code, group, session) {
 
   $("#add-item").addEventListener("submit", (e) => {
     e.preventDefault();
-    if (!myItems || pendingUrl) return;
+    if (!myItems) return;
     const text = input.value.replace(/\s+/g, " ").trim();
+    if (pendingUrl) {
+      const label = text.slice(0, MAX_ITEM) || hostOf(pendingUrl);
+      const url = pendingUrl.slice(0, MAX_URL);
+      linkMode(null);
+      return addItem(`${label} ${url}`);
+    }
     if (!text) return;
     const found = text.match(URL_RE);
     const url = found && normUrl(found[0]);
     if (url) {
       // A link: use any other typed text as its label, otherwise ask for one.
       const label = text.replace(found[0], " ").replace(/\s+/g, " ").trim().slice(0, MAX_ITEM);
-      if (!label) { input.value = url; return linkMode(url); }
+      if (!label) return linkMode(url);
       input.value = "";
       input.focus();
       return addItem(`${label} ${url.slice(0, MAX_URL)}`);
@@ -1111,15 +1123,10 @@ function renderDashboard(code, group, session) {
     input.focus();
     addItem(text.slice(0, MAX_ITEM));
   });
-  labelForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (!myItems || !pendingUrl) return;
-    const label = labelInput.value.replace(/\s+/g, " ").trim().slice(0, MAX_ITEM) || hostOf(pendingUrl);
-    const url = pendingUrl.slice(0, MAX_URL);
-    linkMode(null);
-    addItem(`${label} ${url}`);
-  });
   $("#link-cancel").addEventListener("click", () => linkMode(null));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace" && pendingUrl && !input.value) linkMode(null);
+  });
   $("#my-items").addEventListener("click", (e) => {
     const b = e.target.closest("[data-remove]");
     if (!b || !myItems) return;
